@@ -25,7 +25,8 @@ import {
   Calendar,
   Clock,
   ChevronDown,
-  Sparkles
+  Sparkles,
+  CreditCard
 } from "lucide-react";
 import type { Database, Json } from "@/integrations/supabase/types";
 import logoHC from "@/assets/logo-hc-new.png";
@@ -33,19 +34,25 @@ import { ConsentModal, ConsentData } from "@/components/lgpd/ConsentModal";
 
 type Form = Database["public"]["Tables"]["forms"]["Row"];
 
+interface WeightedOption {
+  text: string;
+  weight: number;
+}
+
 interface FormQuestion {
   id: string;
   label: string;
   description?: string;
-  type: "text" | "textarea" | "radio" | "checkbox" | "scale" | "slider" | "select" | "info";
-  options?: string[];
+  type: "text" | "textarea" | "radio" | "checkbox" | "scale" | "slider" | "select" | "info" | "weighted_radio";
+  options?: string[] | WeightedOption[];
   required?: boolean;
   min?: number;
   max?: number;
+  dimension_group?: string;
 }
 
 interface RespondentData {
-  nome: string;
+  cpf: string;
   empresa: string;
   setor: string;
   cargo: string;
@@ -108,7 +115,7 @@ export default function PublicFormSubmit() {
   const [jobRoles, setJobRoles] = useState<JobRole[]>([]);
   
   const [respondentData, setRespondentData] = useState<RespondentData>({
-    nome: "",
+    cpf: "",
     empresa: "Amaggi",
     setor: "",
     cargo: "",
@@ -202,8 +209,9 @@ export default function PublicFormSubmit() {
     : jobRoles;
 
   const validateRespondentData = () => {
-    if (!respondentData.nome.trim()) {
-      toast.error("Nome é obrigatório");
+    const cleanedCpf = respondentData.cpf.replace(/\D/g, '');
+    if (cleanedCpf.length !== 11) {
+      toast.error("CPF é obrigatório (11 dígitos)");
       return false;
     }
     if (!respondentData.setor.trim()) {
@@ -575,12 +583,20 @@ function RespondentStep({
 
         <div className="grid gap-5 sm:grid-cols-2">
           <TypeformInput
-            icon={<User className="h-4 w-4" />}
-            label="Nome Completo"
+            icon={<CreditCard className="h-4 w-4" />}
+            label="CPF"
             required
-            value={data.nome}
-            onChange={(v) => updateRespondent("nome", v)}
-            placeholder="Digite seu nome..."
+            value={data.cpf}
+            onChange={(v) => {
+              // Format CPF as user types
+              const cleaned = v.replace(/\D/g, '').slice(0, 11);
+              let formatted = cleaned;
+              if (cleaned.length > 3) formatted = `${cleaned.slice(0,3)}.${cleaned.slice(3)}`;
+              if (cleaned.length > 6) formatted = `${cleaned.slice(0,3)}.${cleaned.slice(3,6)}.${cleaned.slice(6)}`;
+              if (cleaned.length > 9) formatted = `${cleaned.slice(0,3)}.${cleaned.slice(3,6)}.${cleaned.slice(6,9)}-${cleaned.slice(9)}`;
+              updateRespondent("cpf", formatted);
+            }}
+            placeholder="000.000.000-00"
           />
 
           <TypeformInput
@@ -795,36 +811,42 @@ function QuestionInput({
       );
 
     case "radio":
+      // Handle both string[] and WeightedOption[] options
+      const radioOptions = question.options || [];
       return (
         <RadioGroup
           value={(value as string) || ""}
           onValueChange={onChange}
           className="space-y-3"
         >
-          {question.options?.map((option, index) => (
-            <motion.div
-              key={index}
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: index * 0.05 }}
-            >
-              <label
-                className={`flex items-center gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all ${
-                  value === option
-                    ? "border-emerald-500 bg-emerald-500/10"
-                    : "border-slate-700 hover:border-slate-600 bg-slate-800/30"
-                }`}
+          {radioOptions.map((option, index) => {
+            const optionText = typeof option === 'string' ? option : option.text;
+            const isSelected = value === optionText;
+            return (
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: index * 0.05 }}
               >
-                <div className={`w-6 h-6 rounded-lg flex items-center justify-center text-sm font-bold ${
-                  value === option ? "bg-emerald-500 text-white" : "bg-slate-700 text-slate-400"
-                }`}>
-                  {String.fromCharCode(65 + index)}
-                </div>
-                <RadioGroupItem value={option} className="sr-only" />
-                <span className="text-white text-lg">{option}</span>
-              </label>
-            </motion.div>
-          ))}
+                <label
+                  className={`flex items-center gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                    isSelected
+                      ? "border-emerald-500 bg-emerald-500/10"
+                      : "border-slate-700 hover:border-slate-600 bg-slate-800/30"
+                  }`}
+                >
+                  <div className={`w-6 h-6 rounded-lg flex items-center justify-center text-sm font-bold ${
+                    isSelected ? "bg-emerald-500 text-white" : "bg-slate-700 text-slate-400"
+                  }`}>
+                    {String.fromCharCode(65 + index)}
+                  </div>
+                  <RadioGroupItem value={optionText} className="sr-only" />
+                  <span className="text-white text-lg">{optionText}</span>
+                </label>
+              </motion.div>
+            );
+          })}
         </RadioGroup>
       );
 
@@ -832,7 +854,8 @@ function QuestionInput({
       return (
         <div className="space-y-3">
           {question.options?.map((option, index) => {
-            const checked = Array.isArray(value) && (value as string[]).includes(option);
+            const optionText = typeof option === 'string' ? option : option.text;
+            const checked = Array.isArray(value) && (value as string[]).includes(optionText);
             return (
               <motion.div
                 key={index}
@@ -852,13 +875,13 @@ function QuestionInput({
                     onCheckedChange={(c) => {
                       const current = Array.isArray(value) ? (value as string[]) : [];
                       const newValue = c
-                        ? [...current, option]
-                        : current.filter((v) => v !== option);
+                        ? [...current, optionText]
+                        : current.filter((v) => v !== optionText);
                       onChange(newValue);
                     }}
                     className="h-6 w-6 rounded-lg border-2 border-slate-600 data-[state=checked]:bg-emerald-500 data-[state=checked]:border-emerald-500"
                   />
-                  <span className="text-white text-lg">{option}</span>
+                  <span className="text-white text-lg">{optionText}</span>
                 </label>
               </motion.div>
             );
@@ -931,15 +954,18 @@ function QuestionInput({
             <SelectValue placeholder="Selecione uma opção..." />
           </SelectTrigger>
           <SelectContent className="bg-slate-900 border-slate-700 rounded-xl">
-            {question.options?.map((option, index) => (
-              <SelectItem 
-                key={index} 
-                value={option} 
-                className="text-white hover:bg-slate-800 focus:bg-slate-800 rounded-lg text-lg py-3"
-              >
-                {option}
-              </SelectItem>
-            ))}
+            {question.options?.map((option, index) => {
+              const optionText = typeof option === 'string' ? option : option.text;
+              return (
+                <SelectItem 
+                  key={index} 
+                  value={optionText} 
+                  className="text-white hover:bg-slate-800 focus:bg-slate-800 rounded-lg text-lg py-3"
+                >
+                  {optionText}
+                </SelectItem>
+              );
+            })}
           </SelectContent>
         </Select>
       );
@@ -955,6 +981,58 @@ function QuestionInput({
             {question.description || "Continue para a próxima seção."}
           </p>
         </motion.div>
+      );
+
+    case "weighted_radio":
+      // ERGOS-style weighted options with elegant cards
+      const weightedOptions = (question.options || []) as WeightedOption[];
+      return (
+        <div className="space-y-3">
+          {weightedOptions.map((option, index) => {
+            const isSelected = value === option.text;
+            // Color based on weight (0=green, 2=yellow, 4=red)
+            const weightColor = option.weight <= 1 ? "emerald" : option.weight <= 2 ? "amber" : "rose";
+            
+            return (
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.05 }}
+              >
+                <button
+                  type="button"
+                  onClick={() => onChange(option.text)}
+                  className={`w-full flex items-center gap-4 p-5 rounded-2xl border-2 cursor-pointer transition-all text-left ${
+                    isSelected
+                      ? `border-${weightColor}-500 bg-${weightColor}-500/10 shadow-lg shadow-${weightColor}-500/10`
+                      : "border-slate-700 hover:border-slate-600 bg-slate-800/30 hover:bg-slate-800/50"
+                  }`}
+                >
+                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-sm font-bold shrink-0 ${
+                    isSelected 
+                      ? `bg-${weightColor}-500 text-white` 
+                      : "bg-slate-700 text-slate-400"
+                  }`}>
+                    {String.fromCharCode(65 + index)}
+                  </div>
+                  <span className={`flex-1 text-lg ${isSelected ? "text-white font-medium" : "text-slate-300"}`}>
+                    {option.text}
+                  </span>
+                  {isSelected && (
+                    <motion.div
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      className={`w-6 h-6 rounded-full bg-${weightColor}-500 flex items-center justify-center`}
+                    >
+                      <CheckCircle2 className="h-4 w-4 text-white" />
+                    </motion.div>
+                  )}
+                </button>
+              </motion.div>
+            );
+          })}
+        </div>
       );
 
     default:

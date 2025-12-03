@@ -400,12 +400,12 @@ serve(async (req) => {
       `;
     }
 
-    // Generate HTML
-    const htmlContent = `
-<!DOCTYPE html>
+    // Generate HTML with proper UTF-8 encoding
+    const htmlContent = `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="utf-8">
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
   <title>AET - Análise Ergonômica do Trabalho - Riscos Psicossociais</title>
   <style>
     @page { 

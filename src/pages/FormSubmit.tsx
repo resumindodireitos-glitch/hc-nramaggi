@@ -42,7 +42,7 @@ export default function FormSubmit() {
   const [currentStep, setCurrentStep] = useState(0); // 0 = dados respondente, 1+ = perguntas
   
   const [respondentData, setRespondentData] = useState<RespondentData>({
-    nome: profile?.full_name || "",
+    cpf: "",
     empresa: "Amaggi",
     setor: profile?.department || "",
     cargo: profile?.job_title || "",
@@ -59,7 +59,6 @@ export default function FormSubmit() {
     if (profile) {
       setRespondentData(prev => ({
         ...prev,
-        nome: prev.nome || profile.full_name || "",
         empresa: "Amaggi",
         setor: prev.setor || profile.department || "",
         cargo: prev.cargo || profile.job_title || "",
