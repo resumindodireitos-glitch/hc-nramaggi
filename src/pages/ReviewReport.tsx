@@ -47,6 +47,7 @@ export default function ReviewReport() {
   const [saving, setSaving] = useState(false);
   const [approving, setApproving] = useState(false);
   const [generatingPdf, setGeneratingPdf] = useState(false);
+  const [generatingDocx, setGeneratingDocx] = useState(false);
   const [editedAnalysis, setEditedAnalysis] = useState("");
   const [editedConclusion, setEditedConclusion] = useState("");
   const [editedRecommendations, setEditedRecommendations] = useState("");
@@ -163,6 +164,37 @@ export default function ReviewReport() {
       toast.error("Erro ao gerar PDF");
     } finally {
       setGeneratingPdf(false);
+    }
+  };
+
+  const handleGenerateDocx = async () => {
+    if (!report) return;
+    setGeneratingDocx(true);
+
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-docx", {
+        body: { reportId: report.id },
+      });
+
+      if (error) throw error;
+
+      const xml = atob(data.docx);
+      const blob = new Blob([xml], { type: "application/xml" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = data.filename || "relatorio_aet.xml";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      toast.success("DOCX gerado com sucesso!");
+    } catch (error) {
+      console.error("Error generating DOCX:", error);
+      toast.error("Erro ao gerar DOCX");
+    } finally {
+      setGeneratingDocx(false);
     }
   };
 
