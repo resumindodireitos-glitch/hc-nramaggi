@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
 import { toast } from "sonner";
 import { Loader2, UserPlus } from "lucide-react";
 import logoHC from "@/assets/logo-hc.jpg";
@@ -15,7 +15,6 @@ export default function Register() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
-  const [role, setRole] = useState<"admin_hc" | "employee_amaggi">("employee_amaggi");
   const [isLoading, setIsLoading] = useState(false);
   const { signUp, user, loading } = useAuthContext();
   const navigate = useNavigate();
@@ -36,7 +35,7 @@ export default function Register() {
     e.preventDefault();
     setIsLoading(true);
 
-    const { error } = await signUp(email, password, fullName, role);
+    const { error } = await signUp(email, password, fullName);
     
     if (error) {
       toast.error("Erro ao cadastrar", { description: error.message });
@@ -102,18 +101,6 @@ export default function Register() {
                   required
                   minLength={6}
                 />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="role">Tipo de Usuário</Label>
-                <Select value={role} onValueChange={(v) => setRole(v as typeof role)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="employee_amaggi">Colaborador Amaggi</SelectItem>
-                    <SelectItem value="admin_hc">Administrador HC</SelectItem>
-                  </SelectContent>
-                </Select>
               </div>
             </CardContent>
             <CardFooter className="flex flex-col gap-4">
