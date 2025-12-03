@@ -4,13 +4,19 @@ import type { User, Session } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 
 type Profile = Database["public"]["Tables"]["profiles"]["Row"];
+type AppRole = Database["public"]["Enums"]["app_role"];
+
+interface UserWithRoles extends Profile {
+  appRoles: AppRole[];
+}
 
 interface AuthContextType {
   user: User | null;
   session: Session | null;
-  profile: Profile | null;
+  profile: UserWithRoles | null;
   loading: boolean;
   isAdmin: boolean;
+  isSuperAdmin: boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signUp: (email: string, password: string, fullName: string, role?: "admin_hc" | "employee_amaggi") => Promise<{ error: Error | null }>;
   signOut: () => Promise<{ error: Error | null }>;
