@@ -7,121 +7,26 @@ const corsHeaders = {
 };
 
 const MASTER_PROMPT = `# SYSTEM ROLE
-Você é um Fisioterapeuta Ergonomista Sênior da "HC Consultoria em Ergonomia", responsável pela elaboração de laudos AET (Análise Ergonômica do Trabalho) e avaliação de Riscos Psicossociais para empresas do Grupo Amaggi, em conformidade com a NR-01 e NR-17.
+Você é um Fisioterapeuta Ergonomista Sênior da "HC Consultoria em Ergonomia", responsável pela elaboração de laudos AET e avaliação de Riscos Psicossociais para empresas do Grupo Amaggi.
 
-Sua tarefa é receber as respostas de questionários (ERGOS para operacional ou HSE-IT para administrativo), calcular pontuações, cruzar com a Matriz de Risco FMEA e gerar textos técnicos para o relatório final.
+# REGRAS
+1. Use tom técnico, formal, impessoal em Português (BR).
+2. Baseie-se nos dados fornecidos. Não invente riscos.
+3. Siga a estrutura JSON solicitada.
+4. Cite NR-01, NR-17, ISO 10075-1, ISO 45003.
 
-# REGRAS DE OURO
-1. Use tom técnico, formal, impessoal e em Português (BR).
-2. Baseie-se estritamente nos dados fornecidos. Não invente riscos que não estão nas respostas.
-3. Siga rigorosamente a estrutura de saída JSON solicitada.
-4. Cite as normas regulamentadoras adequadas (NR-01, NR-17, ISO 10075-1, ISO 45003).
-
-# BASE DE CONHECIMENTO
-
-## 1. FERRAMENTA ERGOS (Avaliação de Carga Mental - Operacional)
-O ERGOS avalia 10 fatores cognitivos divididos em duas tabelas:
-
-**Tabela A (Fatores Cognitivos):**
-- Pressão de tempo (0-10)
-- Atenção (0-10)
-- Complexidade (0-10)
-- Monotonia (0-10)
-- Raciocínio e processos centrais (0-10)
-
-**Tabela B (Fatores Organizacionais):**
-- Iniciativa (0-10)
-- Isolamento (0-10)
-- Horários e turnos de trabalho (0-10)
-- Relacionamentos no trabalho (0-10)
-- Demandas gerais (0-10)
-
-**Cálculo da Pontuação Total:**
-- Soma Tabela A = soma dos 5 fatores da Tabela A
-- Soma Tabela B = soma dos 5 fatores da Tabela B
-- Pontuação Total = (Soma_A + Soma_B) * fator de ajuste (aproximadamente 0.83)
-
-**Classificação de Risco ERGOS:**
-- 0 a 30 pontos: Condições adequadas sem existência de risco em potencial
-- 31 a 50 pontos: Risco Médio - necessidade de monitoramento
-- 51 a 70 pontos: Risco Alto - intervenção necessária
-- Acima de 70 pontos: Risco Crítico - ação imediata
-
-## 2. FERRAMENTA HSE-IT (Estresse Relacionado ao Trabalho - Administrativo)
-O HSE-IT avalia 7 dimensões em percentual de fatores estressores:
-
-**Dimensões:**
-- Demandas (carga de trabalho, exigências, organização e ambiente)
-- Relacionamentos (comportamentos interpessoais, assédio)
-- Controle (opinar sobre mudanças, controlar ritmo)
-- Suporte/apoio da chefia (apoio de superiores, recursos)
-- Suporte/apoio dos colegas (comunicação interpessoal, diversidade)
-- Cargo (transparência em promoção, reconhecimento)
-- Comunicação e mudanças (participação em mudanças)
-
-**Classificação de Risco HSE-IT (por dimensão):**
-- 0%: Sem fatores estressores identificados
-- 1% a 20%: Risco Baixo - monitorar
-- 21% a 50%: Risco Médio - atenção necessária
-- Acima de 50%: Risco Alto - intervenção necessária
-
-## 3. MATRIZ FMEA ADAPTADA (G x P x C)
-
-**Gravidade (G):**
-- 1 = Baixa: Desconforto leve, sem afastamento
-- 2 = Média: Desconforto moderado, possível acompanhamento
-- 3 = Alta: Agravo potencial à saúde mental, possível afastamento
-
-**Probabilidade (P):**
-- 1 = Baixa: Ocorrência improvável
-- 2 = Média: Ocorrência possível sob certas condições
-- 3 = Alta: Ocorrência frequente ou esperada
-
-**Controle (C):**
-- 1 = Bom: Medidas eficazes implementadas
-- 2 = Parcial: Medidas existentes mas insuficientes
-- 3 = Inexistente: Sem medidas de controle
-
-**NRE (Nível de Risco Ergonômico) = G × P × C**
-
-**Classificação NRE:**
-- 1: Trivial
-- 2 a 3: Tolerável
-- 4 a 9: Moderado
-- 12 a 18: Substancial
-- 27: Intolerável
-
-# FORMATO DE SAÍDA (JSON ESTRITO)
-
-Retorne APENAS este JSON, sem markdown:
-
+# FORMATO DE SAÍDA (JSON)
 {
   "risk_level": "baixo" | "medio" | "alto",
   "form_type": "ergos" | "hse_it",
   "total_score": 00.00,
-  "dimensions_score": {
-    "dimensao1": { "score": 0, "risk_color": "verde" | "amarelo" | "vermelho" }
-  },
-  "analysis_text": "Texto completo da interpretação dos resultados...",
-  "risk_inventory": [
-    {
-      "risk_factor": "Nome do fator de risco",
-      "harm": "Transtornos relacionados à saúde mental",
-      "source_cause": "Descrição da fonte/circunstância",
-      "exposure": "Habitual" | "Permanente" | "Intermitente",
-      "severity_G": 1-3,
-      "probability_P": 1-3,
-      "control_C": 1-3,
-      "nre_value": 0,
-      "nre_label": "Trivial" | "Tolerável" | "Moderado" | "Substancial" | "Intolerável",
-      "action_plan": "Medida de controle..."
-    }
-  ],
-  "conclusion": "Texto conclusivo formal...",
-  "recommendations": ["Recomendação 1", "Recomendação 2"]
+  "dimensions_score": {},
+  "analysis_text": "Texto da interpretação...",
+  "risk_inventory": [],
+  "conclusion": "Texto conclusivo...",
+  "recommendations": []
 }`;
 
-// API endpoints for different providers
 const AI_ENDPOINTS = {
   lovable: "https://ai.gateway.lovable.dev/v1/chat/completions",
   openai: "https://api.openai.com/v1/chat/completions",
@@ -129,13 +34,70 @@ const AI_ENDPOINTS = {
   deepseek: "https://api.deepseek.com/v1/chat/completions",
 };
 
-async function callLovableAI(systemPrompt: string, userPrompt: string, model: string, apiKey: string) {
-  const response = await fetch(AI_ENDPOINTS.lovable, {
+async function generateEmbedding(text: string, apiKey: string): Promise<number[]> {
+  const response = await fetch("https://ai.gateway.lovable.dev/v1/embeddings", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
     },
+    body: JSON.stringify({
+      model: "text-embedding-3-small",
+      input: text,
+    }),
+  });
+
+  if (!response.ok) throw new Error(`Embedding failed: ${response.status}`);
+  const data = await response.json();
+  return data.data[0].embedding;
+}
+
+async function searchRAG(
+  supabase: any,
+  agentId: string,
+  query: string,
+  topK: number,
+  lovableApiKey: string
+): Promise<string> {
+  try {
+    // Generate embedding for the query
+    const embedding = await generateEmbedding(query, lovableApiKey);
+    
+    // Search similar chunks
+    const { data: chunks, error } = await supabase.rpc("search_similar_chunks", {
+      query_embedding: `[${embedding.join(",")}]`,
+      agent_uuid: agentId,
+      match_count: topK
+    });
+
+    if (error) {
+      console.error("RAG search error:", error);
+      return "";
+    }
+
+    if (!chunks || chunks.length === 0) {
+      console.log("No RAG chunks found");
+      return "";
+    }
+
+    console.log(`Found ${chunks.length} RAG chunks`);
+    
+    // Build context from chunks
+    const context = chunks
+      .map((c: any, i: number) => `[Documento ${i + 1}]\n${c.content}`)
+      .join("\n\n---\n\n");
+
+    return context;
+  } catch (error) {
+    console.error("RAG error:", error);
+    return "";
+  }
+}
+
+async function callLovableAI(systemPrompt: string, userPrompt: string, model: string, apiKey: string) {
+  const response = await fetch(AI_ENDPOINTS.lovable, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
     body: JSON.stringify({
       model,
       messages: [
@@ -146,8 +108,8 @@ async function callLovableAI(systemPrompt: string, userPrompt: string, model: st
   });
 
   if (!response.ok) {
-    const errorText = await response.text();
-    console.error("Lovable AI error:", response.status, errorText);
+    const err = await response.text();
+    console.error("Lovable AI error:", response.status, err);
     throw new Error(`Lovable AI error: ${response.status}`);
   }
 
@@ -158,10 +120,7 @@ async function callLovableAI(systemPrompt: string, userPrompt: string, model: st
 async function callOpenAI(systemPrompt: string, userPrompt: string, model: string, apiKey: string) {
   const response = await fetch(AI_ENDPOINTS.openai, {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
+    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
     body: JSON.stringify({
       model,
       messages: [
@@ -172,12 +131,7 @@ async function callOpenAI(systemPrompt: string, userPrompt: string, model: strin
     }),
   });
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error("OpenAI error:", response.status, errorText);
-    throw new Error(`OpenAI error: ${response.status}`);
-  }
-
+  if (!response.ok) throw new Error(`OpenAI error: ${response.status}`);
   const data = await response.json();
   return data.choices?.[0]?.message?.content;
 }
@@ -194,18 +148,11 @@ async function callAnthropic(systemPrompt: string, userPrompt: string, model: st
       model,
       max_tokens: 4000,
       system: systemPrompt,
-      messages: [
-        { role: "user", content: userPrompt },
-      ],
+      messages: [{ role: "user", content: userPrompt }],
     }),
   });
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error("Anthropic error:", response.status, errorText);
-    throw new Error(`Anthropic error: ${response.status}`);
-  }
-
+  if (!response.ok) throw new Error(`Anthropic error: ${response.status}`);
   const data = await response.json();
   return data.content?.[0]?.text;
 }
@@ -213,10 +160,7 @@ async function callAnthropic(systemPrompt: string, userPrompt: string, model: st
 async function callDeepSeek(systemPrompt: string, userPrompt: string, model: string, apiKey: string) {
   const response = await fetch(AI_ENDPOINTS.deepseek, {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
+    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
     body: JSON.stringify({
       model,
       messages: [
@@ -227,63 +171,44 @@ async function callDeepSeek(systemPrompt: string, userPrompt: string, model: str
     }),
   });
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error("DeepSeek error:", response.status, errorText);
-    throw new Error(`DeepSeek error: ${response.status}`);
-  }
-
+  if (!response.ok) throw new Error(`DeepSeek error: ${response.status}`);
   const data = await response.json();
   return data.choices?.[0]?.message?.content;
 }
 
 function generateFallbackAnalysis(formType: string, answers: Record<string, any>) {
-  // Basic analysis without AI
-  const isErgos = formType === "ergos";
-  
-  let totalScore = 0;
   const dimensionsScore: Record<string, { score: number; risk_color: string }> = {};
+  let totalScore = 0;
 
-  if (isErgos) {
-    // Calculate ERGOS score
+  if (formType === "ergos") {
     const factors = ["pressao_tempo", "atencao", "complexidade", "monotonia", "raciocinio", 
                      "iniciativa", "isolamento", "horarios_turnos", "relacionamentos", "demandas_gerais"];
     let sum = 0;
     factors.forEach(f => {
       const val = parseInt(answers[f]) || 0;
       sum += val;
-      dimensionsScore[f] = {
-        score: val,
-        risk_color: val >= 7 ? "vermelho" : val >= 4 ? "amarelo" : "verde"
-      };
+      dimensionsScore[f] = { score: val, risk_color: val >= 7 ? "vermelho" : val >= 4 ? "amarelo" : "verde" };
     });
     totalScore = Math.round(sum * 0.83);
   } else {
-    // HSE-IT calculation
-    const dimensions = ["demandas", "relacionamentos", "controle", "suporte_chefia", 
-                        "suporte_colegas", "cargo", "comunicacao_mudancas"];
+    const dimensions = ["demandas", "relacionamentos", "controle", "suporte_chefia", "suporte_colegas", "cargo", "comunicacao_mudancas"];
     dimensions.forEach(d => {
       const val = parseInt(answers[d]) || 0;
-      dimensionsScore[d] = {
-        score: val,
-        risk_color: val > 50 ? "vermelho" : val > 20 ? "amarelo" : "verde"
-      };
+      dimensionsScore[d] = { score: val, risk_color: val > 50 ? "vermelho" : val > 20 ? "amarelo" : "verde" };
       totalScore += val;
     });
     totalScore = Math.round(totalScore / dimensions.length);
   }
 
-  const riskLevel = totalScore > 50 ? "alto" : totalScore > 30 ? "medio" : "baixo";
-
   return {
-    risk_level: riskLevel,
+    risk_level: totalScore > 50 ? "alto" : totalScore > 30 ? "medio" : "baixo",
     form_type: formType,
     total_score: totalScore,
     dimensions_score: dimensionsScore,
-    analysis_text: "Análise gerada automaticamente. Configure um prompt de IA personalizado para análises mais detalhadas.",
+    analysis_text: "Análise básica gerada. Configure um agente de IA para análises detalhadas.",
     risk_inventory: [],
-    conclusion: "Relatório gerado sem análise de IA. Configure as chaves de API ou prompts para análises completas.",
-    recommendations: ["Configure um prompt de IA ativo para gerar recomendações personalizadas."]
+    conclusion: "Relatório gerado sem análise de IA completa.",
+    recommendations: ["Configure um agente de IA ativo para recomendações personalizadas."]
   };
 }
 
@@ -305,15 +230,13 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const lovableApiKey = Deno.env.get("LOVABLE_API_KEY");
+    const lovableApiKey = Deno.env.get("LOVABLE_API_KEY")!;
 
-    // === AUTHORIZATION CHECK ===
+    // Authorization
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
-      return new Response(
-        JSON.stringify({ error: "Authorization header required" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({ error: "Authorization required" }), 
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     const userClient = createClient(supabaseUrl, supabaseAnonKey, {
@@ -322,27 +245,21 @@ serve(async (req) => {
 
     const { data: { user }, error: userError } = await userClient.auth.getUser();
     if (userError || !user) {
-      return new Response(
-        JSON.stringify({ error: "Invalid or expired token" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({ error: "Invalid token" }), 
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     const { data: userRole } = await userClient.from("user_roles").select("role").eq("user_id", user.id).single();
-    const isAdmin = userRole?.role === "admin_hc" || userRole?.role === "super_admin";
-    
-    if (!isAdmin) {
-      return new Response(
-        JSON.stringify({ error: "Admin access required to trigger AI analysis" }),
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    if (!userRole || (userRole.role !== "admin_hc" && userRole.role !== "super_admin")) {
+      return new Response(JSON.stringify({ error: "Admin access required" }), 
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    console.log("User authorized:", user.id, "Role:", userRole?.role);
+    console.log("User authorized:", user.id);
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Fetch submission with form data
+    // Fetch submission
     const { data: submission, error: fetchError } = await supabase
       .from("submissions")
       .select("*, forms(*)")
@@ -350,52 +267,62 @@ serve(async (req) => {
       .single();
 
     if (fetchError || !submission) {
-      console.error("Error fetching submission:", fetchError);
-      return new Response(
-        JSON.stringify({ error: "Submission not found" }),
-        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({ error: "Submission not found" }), 
+        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     const formType = submission.forms?.type || "ergos";
     let systemPrompt = MASTER_PROMPT;
     let modelToUse = "google/gemini-2.5-flash";
     let providerToUse = "lovable";
+    let useRag = false;
+    let ragTopK = 5;
+    let agentId: string | null = null;
 
-    // Fetch active prompt from database
-    const { data: customPrompt, error: promptError } = await supabase
+    // Fetch active agent
+    const { data: agent, error: agentError } = await supabase
       .from("ai_prompts")
-      .select("system_prompt, model, provider, temperature, max_tokens")
+      .select("*")
       .eq("form_type", formType)
       .eq("is_active", true)
       .maybeSingle();
 
-    if (customPrompt && !promptError) {
-      console.log("Using custom prompt for form type:", formType);
-      systemPrompt = customPrompt.system_prompt;
-      modelToUse = customPrompt.model || modelToUse;
-      providerToUse = customPrompt.provider || providerToUse;
-    } else {
-      console.log("Using default MASTER_PROMPT for form type:", formType);
+    if (agent && !agentError) {
+      console.log("Using agent:", agent.name);
+      systemPrompt = agent.system_prompt;
+      modelToUse = agent.model || modelToUse;
+      providerToUse = agent.provider || providerToUse;
+      useRag = agent.use_rag || false;
+      ragTopK = agent.rag_top_k || 5;
+      agentId = agent.id;
     }
 
-    // Get API keys from system_settings
+    // Get API keys
     const { data: settingsData } = await supabase
       .from("system_settings")
       .select("key, value")
       .in("key", ["OPENAI_API_KEY", "ANTHROPIC_API_KEY", "DEEPSEEK_API_KEY"]);
 
     const apiKeys: Record<string, string> = {};
-    settingsData?.forEach(s => {
-      if (s.value) apiKeys[s.key] = s.value;
-    });
+    settingsData?.forEach(s => { if (s.value) apiKeys[s.key] = s.value; });
 
-    console.log("Analyzing submission:", submissionId);
-    console.log("Provider:", providerToUse, "Model:", modelToUse);
+    console.log("Provider:", providerToUse, "Model:", modelToUse, "RAG:", useRag);
 
     const formTitle = submission.forms?.title || "Formulário";
     const answers = submission.answers;
     const respondentData = submission.respondent_data || {};
+
+    // Build RAG context if enabled
+    let ragContext = "";
+    if (useRag && agentId && lovableApiKey) {
+      const queryText = `${respondentData.cargo || ""} ${respondentData.setor || ""} ${JSON.stringify(answers).slice(0, 500)}`;
+      ragContext = await searchRAG(supabase, agentId, queryText, ragTopK, lovableApiKey);
+      
+      if (ragContext) {
+        systemPrompt += `\n\n# CONTEXTO DA BASE DE CONHECIMENTO\nUse as informações abaixo como referência adicional:\n\n${ragContext}`;
+        console.log("RAG context added to prompt");
+      }
+    }
 
     const userPrompt = `# DADOS DO COLABORADOR
 - Nome: ${respondentData.full_name || respondentData.nome || "Não informado"}
@@ -407,16 +334,15 @@ serve(async (req) => {
 - Título: ${formTitle}
 - Tipo: ${formType}
 
-# RESPOSTAS DO QUESTIONÁRIO
+# RESPOSTAS
 ${JSON.stringify(answers, null, 2)}
 
-Analise estas respostas e gere o relatório técnico completo conforme as instruções do sistema.`;
+Analise e gere o relatório técnico em JSON.`;
 
     let analysisResult;
     let aiContent: string | null = null;
 
     try {
-      // Try to call the appropriate AI provider
       switch (providerToUse) {
         case "lovable":
           if (lovableApiKey) {
@@ -426,44 +352,31 @@ Analise estas respostas e gere o relatório técnico completo conforme as instru
         case "openai":
           if (apiKeys["OPENAI_API_KEY"]) {
             aiContent = await callOpenAI(systemPrompt, userPrompt, modelToUse, apiKeys["OPENAI_API_KEY"]);
-          } else {
-            console.log("OpenAI API key not configured, falling back to Lovable AI");
-            if (lovableApiKey) {
-              aiContent = await callLovableAI(systemPrompt, userPrompt, "google/gemini-2.5-flash", lovableApiKey);
-            }
+          } else if (lovableApiKey) {
+            aiContent = await callLovableAI(systemPrompt, userPrompt, "google/gemini-2.5-flash", lovableApiKey);
           }
           break;
         case "anthropic":
           if (apiKeys["ANTHROPIC_API_KEY"]) {
             aiContent = await callAnthropic(systemPrompt, userPrompt, modelToUse, apiKeys["ANTHROPIC_API_KEY"]);
-          } else {
-            console.log("Anthropic API key not configured, falling back to Lovable AI");
-            if (lovableApiKey) {
-              aiContent = await callLovableAI(systemPrompt, userPrompt, "google/gemini-2.5-flash", lovableApiKey);
-            }
+          } else if (lovableApiKey) {
+            aiContent = await callLovableAI(systemPrompt, userPrompt, "google/gemini-2.5-flash", lovableApiKey);
           }
           break;
         case "deepseek":
           if (apiKeys["DEEPSEEK_API_KEY"]) {
             aiContent = await callDeepSeek(systemPrompt, userPrompt, modelToUse, apiKeys["DEEPSEEK_API_KEY"]);
-          } else {
-            console.log("DeepSeek API key not configured, falling back to Lovable AI");
-            if (lovableApiKey) {
-              aiContent = await callLovableAI(systemPrompt, userPrompt, "google/gemini-2.5-flash", lovableApiKey);
-            }
+          } else if (lovableApiKey) {
+            aiContent = await callLovableAI(systemPrompt, userPrompt, "google/gemini-2.5-flash", lovableApiKey);
           }
           break;
       }
 
       if (aiContent) {
-        console.log("AI Response received, parsing JSON...");
         const jsonMatch = aiContent.match(/\{[\s\S]*\}/);
-        if (!jsonMatch) {
-          throw new Error("Could not parse AI response as JSON");
-        }
+        if (!jsonMatch) throw new Error("Could not parse AI response");
         analysisResult = JSON.parse(jsonMatch[0]);
       } else {
-        console.log("No AI response, generating fallback analysis");
         analysisResult = generateFallbackAnalysis(formType, answers);
       }
     } catch (aiError) {
@@ -471,7 +384,7 @@ Analise estas respostas e gere o relatório técnico completo conforme as instru
       analysisResult = generateFallbackAnalysis(formType, answers);
     }
 
-    // Create report in database
+    // Create report
     const { data: report, error: reportError } = await supabase
       .from("reports")
       .insert({
@@ -486,28 +399,20 @@ Analise estas respostas e gere o relatório técnico completo conforme as instru
       .select()
       .single();
 
-    if (reportError) {
-      console.error("Error creating report:", reportError);
-      throw reportError;
-    }
+    if (reportError) throw reportError;
 
-    // Update submission status
-    await supabase
-      .from("submissions")
-      .update({ status: "processed" })
-      .eq("id", submissionId);
+    await supabase.from("submissions").update({ status: "processed" }).eq("id", submissionId);
 
-    console.log("Report created successfully:", report.id);
+    console.log("Report created:", report.id);
 
     return new Response(
       JSON.stringify({ success: true, reportId: report.id }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
-    console.error("Error in analyze-submission:", error);
-    const errorMessage = error instanceof Error ? error.message : "Internal server error";
+    console.error("Error:", error);
     return new Response(
-      JSON.stringify({ error: errorMessage }),
+      JSON.stringify({ error: error instanceof Error ? error.message : "Internal error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
