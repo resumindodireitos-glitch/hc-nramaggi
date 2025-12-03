@@ -141,7 +141,116 @@
     @apply transition-all duration-300 hover:shadow-lg hover:shadow-primary/5 hover:-translate-y-0.5;
   }
 
+  .card-interactive {
+    @apply transition-all duration-300 hover:shadow-xl hover:shadow-primary/10 hover:-translate-y-1 hover:border-primary/20;
+  }
+
   .text-gradient {
     @apply bg-gradient-to-r from-primary to-success bg-clip-text text-transparent;
+  }
+
+  .btn-shine {
+    @apply relative overflow-hidden;
+  }
+
+  .btn-shine::after {
+    content: '';
+    @apply absolute inset-0 -translate-x-full;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    animation: shimmer 2s infinite;
+  }
+
+  .hover-lift {
+    @apply transition-transform duration-200 hover:-translate-y-1;
+  }
+
+  .hover-scale {
+    @apply transition-transform duration-200 hover:scale-[1.02];
+  }
+
+  .hover-glow {
+    @apply transition-shadow duration-300 hover:shadow-lg hover:shadow-primary/20;
+  }
+
+  .focus-ring {
+    @apply focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-2;
+  }
+
+  .skeleton-shimmer {
+    @apply relative overflow-hidden bg-muted;
+    background: linear-gradient(90deg, hsl(var(--muted)) 0%, hsl(var(--muted) / 0.5) 50%, hsl(var(--muted)) 100%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+  }
+
+  .stagger-1 { animation-delay: 100ms; }
+  .stagger-2 { animation-delay: 200ms; }
+  .stagger-3 { animation-delay: 300ms; }
+  .stagger-4 { animation-delay: 400ms; }
+  .stagger-5 { animation-delay: 500ms; }
+
+  .animate-in {
+    animation-fill-mode: backwards;
+  }
+}
+
+@layer components {
+  .page-header {
+    @apply animate-fade-in-down;
+  }
+
+  .page-title {
+    @apply text-2xl sm:text-3xl font-display font-bold text-foreground;
+  }
+
+  .page-description {
+    @apply text-muted-foreground mt-1;
+  }
+
+  .action-card {
+    @apply relative overflow-hidden border-border/50 transition-all duration-300;
+    @apply hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5 hover:-translate-y-0.5;
+  }
+
+  .action-card::before {
+    content: '';
+    @apply absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent;
+    @apply opacity-0 transition-opacity duration-500;
+  }
+
+  .action-card:hover::before {
+    @apply opacity-100;
+  }
+
+  .stat-value {
+    @apply text-3xl font-bold tracking-tight tabular-nums;
+  }
+
+  .icon-button {
+    @apply p-2 rounded-lg transition-all duration-200;
+    @apply hover:bg-muted hover:scale-110;
+  }
+
+  .badge-pulse {
+    @apply relative;
+  }
+
+  .badge-pulse::before {
+    content: '';
+    @apply absolute inset-0 rounded-full bg-current opacity-30;
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  .link-underline {
+    @apply relative;
+  }
+
+  .link-underline::after {
+    content: '';
+    @apply absolute left-0 bottom-0 w-0 h-0.5 bg-primary transition-all duration-300;
+  }
+
+  .link-underline:hover::after {
+    @apply w-full;
   }
 }

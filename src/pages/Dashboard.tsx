@@ -190,29 +190,38 @@ export default function Dashboard() {
     value, 
     icon: Icon, 
     description, 
-    color 
+    color,
+    delay = 0
   }: { 
     title: string; 
     value: number; 
     icon: React.ElementType; 
     description: string;
     color: string;
+    delay?: number;
   }) => (
-    <Card className="animate-fade-in">
-      <CardHeader className="flex flex-row items-center justify-between pb-2">
+    <Card 
+      className="group relative overflow-hidden border-border/50 hover:border-primary/30 transition-all duration-300 hover:shadow-lg hover:shadow-primary/5 hover:-translate-y-1"
+      style={{ animationDelay: `${delay}ms` }}
+    >
+      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+      <CardHeader className="flex flex-row items-center justify-between pb-2 relative">
         <CardTitle className="text-sm font-medium text-muted-foreground">
           {title}
         </CardTitle>
-        <div className={`p-2 rounded-lg ${color}`}>
+        <div className={`p-2.5 rounded-xl ${color} transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3`}>
           <Icon className="h-4 w-4" />
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="relative">
         {loading ? (
-          <Skeleton className="h-8 w-16" />
+          <div className="space-y-2">
+            <Skeleton className="h-8 w-20 animate-pulse" />
+            <Skeleton className="h-3 w-24 animate-pulse" />
+          </div>
         ) : (
           <>
-            <div className="text-3xl font-bold">{value}</div>
+            <div className="text-3xl font-bold tracking-tight animate-count-up">{value}</div>
             <p className="text-xs text-muted-foreground mt-1">{description}</p>
           </>
         )}
@@ -223,8 +232,9 @@ export default function Dashboard() {
   return (
     <AppLayout>
       <div className="space-y-8">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">
+        {/* Header with animation */}
+        <div className="animate-fade-in-down">
+          <h1 className="text-3xl font-display font-bold text-foreground">
             Olá, {profile?.full_name?.split(" ")[0]}! 👋
           </h1>
           <p className="text-muted-foreground mt-1">
@@ -235,35 +245,47 @@ export default function Dashboard() {
           </p>
         </div>
 
+        {/* Stats with staggered animation */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <StatCard
-            title="Submissões"
-            value={stats?.totalSubmissions || 0}
-            icon={FileText}
-            description="Total de respostas"
-            color="bg-info/10 text-info"
-          />
-          <StatCard
-            title="Pendentes"
-            value={stats?.pendingReports || 0}
-            icon={Clock}
-            description="Aguardando análise"
-            color="bg-warning/10 text-warning"
-          />
-          <StatCard
-            title="Aprovados"
-            value={stats?.approvedReports || 0}
-            icon={CheckCircle}
-            description="Relatórios finalizados"
-            color="bg-success/10 text-success"
-          />
-          <StatCard
-            title="Formulários"
-            value={stats?.activeForms || 0}
-            icon={ClipboardList}
-            description="Ativos no sistema"
-            color="bg-primary/10 text-primary"
-          />
+          <div className="animate-fade-in-up" style={{ animationDelay: '0ms' }}>
+            <StatCard
+              title="Submissões"
+              value={stats?.totalSubmissions || 0}
+              icon={FileText}
+              description="Total de respostas"
+              color="bg-info/10 text-info"
+            />
+          </div>
+          <div className="animate-fade-in-up" style={{ animationDelay: '100ms', animationFillMode: 'backwards' }}>
+            <StatCard
+              title="Pendentes"
+              value={stats?.pendingReports || 0}
+              icon={Clock}
+              description="Aguardando análise"
+              color="bg-warning/10 text-warning"
+              delay={100}
+            />
+          </div>
+          <div className="animate-fade-in-up" style={{ animationDelay: '200ms', animationFillMode: 'backwards' }}>
+            <StatCard
+              title="Aprovados"
+              value={stats?.approvedReports || 0}
+              icon={CheckCircle}
+              description="Relatórios finalizados"
+              color="bg-success/10 text-success"
+              delay={200}
+            />
+          </div>
+          <div className="animate-fade-in-up" style={{ animationDelay: '300ms', animationFillMode: 'backwards' }}>
+            <StatCard
+              title="Formulários"
+              value={stats?.activeForms || 0}
+              icon={ClipboardList}
+              description="Ativos no sistema"
+              color="bg-primary/10 text-primary"
+              delay={300}
+            />
+          </div>
         </div>
 
         {/* Charts Section - Admin Only */}
