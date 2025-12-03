@@ -174,6 +174,36 @@ serve(async (req) => {
       respondentData.tenure
     ) || "Não informado";
 
+    // Work Description - Trabalho Real e Prescrito
+    const trabalhoReal = escapeHtml(
+      respondentData.trabalho_real || 
+      respondentData.descricao_atividade ||
+      respondentData.atividade_real
+    ) || "";
+    
+    const trabalhoPrescrito = escapeHtml(
+      respondentData.trabalho_prescrito || 
+      respondentData.cbo_description ||
+      respondentData.descricao_cargo ||
+      jobRole?.description ||
+      jobRole?.cbo_description
+    ) || "";
+    
+    const descricaoAmbiente = escapeHtml(
+      respondentData.descricao_ambiente ||
+      respondentData.ambiente ||
+      respondentData.ambiente_trabalho
+    ) || "";
+    
+    const turno = escapeHtml(
+      respondentData.turno ||
+      respondentData.shift
+    ) || "Comercial";
+    
+    const pausas = escapeHtml(
+      respondentData.pausas
+    ) || "Conforme NR-17";
+
     const isErgos = formType === "ergos";
     const toolName = isErgos ? "ERGOS" : "HSE-IT";
 
@@ -715,7 +745,7 @@ serve(async (req) => {
         </tr>
         <tr>
           <th>Turno:</th>
-          <td>Adm./Comercial (&gt;5h às &lt;22h)</td>
+          <td>${turno}</td>
           <th>Jornada de Trabalho:</th>
           <td>7h30 às 17h18 de segunda a sexta</td>
         </tr>
@@ -726,13 +756,51 @@ serve(async (req) => {
           <td>${tenure}</td>
         </tr>
         <tr>
-          <th>Data da Avaliação:</th>
-          <td>${evaluationDate}</td>
+          <th>Pausas:</th>
+          <td>${pausas}</td>
           <th>Ferramenta Utilizada:</th>
           <td>${toolName}</td>
         </tr>
+        <tr>
+          <th>Data da Avaliação:</th>
+          <td colspan="3">${evaluationDate}</td>
+        </tr>
       </table>
     </div>
+
+    <!-- Work Description Section -->
+    ${trabalhoPrescrito || trabalhoReal ? `
+    <div class="section">
+      <h2 class="section-title">DESCRIÇÃO DA ATIVIDADE</h2>
+      
+      ${trabalhoPrescrito ? `
+      <div style="margin-bottom: 12px;">
+        <h3 style="font-size: 10pt; font-weight: bold; color: #005c42; margin-bottom: 5px;">TRABALHO PRESCRITO (CBO)</h3>
+        <div style="background: #f8f9fa; padding: 10px; border-left: 3px solid #005c42; font-size: 9pt; text-align: justify;">
+          ${trabalhoPrescrito}
+        </div>
+      </div>
+      ` : ''}
+      
+      ${trabalhoReal ? `
+      <div style="margin-bottom: 12px;">
+        <h3 style="font-size: 10pt; font-weight: bold; color: #005c42; margin-bottom: 5px;">TRABALHO REAL (ATIVIDADE RELATADA)</h3>
+        <div style="background: #e8f5e9; padding: 10px; border-left: 3px solid #22c55e; font-size: 9pt; text-align: justify;">
+          ${trabalhoReal}
+        </div>
+      </div>
+      ` : ''}
+      
+      ${descricaoAmbiente ? `
+      <div>
+        <h3 style="font-size: 10pt; font-weight: bold; color: #005c42; margin-bottom: 5px;">CONDIÇÕES AMBIENTAIS</h3>
+        <div style="background: #f5f5f5; padding: 10px; border-left: 3px solid #999; font-size: 9pt; text-align: justify;">
+          ${descricaoAmbiente}
+        </div>
+      </div>
+      ` : ''}
+    </div>
+    ` : ''}
 
     <!-- Evaluation -->
     <div class="section">

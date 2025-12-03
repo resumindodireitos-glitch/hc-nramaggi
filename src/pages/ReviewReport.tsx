@@ -410,10 +410,61 @@ export default function ReviewReport() {
     }
   };
 
+  // === VALIDATION ===
+  
+  const validateRequiredFields = (): { valid: boolean; errors: string[] } => {
+    const errors: string[] = [];
+    
+    // Validate respondent data
+    if (!editedRespondent.cargo?.trim()) {
+      errors.push("Cargo é obrigatório");
+    }
+    if (!editedRespondent.setor?.trim()) {
+      errors.push("Setor é obrigatório");
+    }
+    
+    // Validate analysis content
+    if (!editedAnalysis?.trim() || editedAnalysis.trim().length < 50) {
+      errors.push("Análise deve ter pelo menos 50 caracteres");
+    }
+    if (!editedConclusion?.trim() || editedConclusion.trim().length < 20) {
+      errors.push("Conclusão é obrigatória");
+    }
+    
+    // Validate work description
+    if (!editedWorkDescription.trabalho_real?.trim()) {
+      errors.push("Trabalho Real é obrigatório");
+    }
+    if (!editedWorkDescription.trabalho_prescrito?.trim()) {
+      errors.push("Trabalho Prescrito é obrigatório");
+    }
+    
+    return { valid: errors.length === 0, errors };
+  };
+
   // === OTHER HANDLERS ===
 
   const handleApprove = async () => {
     if (!report) return;
+    
+    // Validate before approval
+    const { valid, errors } = validateRequiredFields();
+    if (!valid) {
+      toast.error(
+        <div className="space-y-1">
+          <p className="font-semibold">Campos obrigatórios faltando:</p>
+          <ul className="text-sm list-disc list-inside">
+            {errors.map((err, i) => <li key={i}>{err}</li>)}
+          </ul>
+        </div>
+      );
+      return;
+    }
+    
+    // First save all data before approving
+    await handleSaveAnalysis();
+    await handleSaveRespondentData();
+    
     setApproving(true);
 
     try {
@@ -429,11 +480,11 @@ export default function ReviewReport() {
         .update({ status: "approved" })
         .eq("id", report.submission_id);
 
-      toast.success("Relatório aprovado!");
+      toast.success("Relatório aprovado com sucesso!");
       fetchReport();
     } catch (error) {
       console.error("Error approving report:", error);
-      toast.error("Erro ao aprovar");
+      toast.error("Erro ao aprovar relatório");
     } finally {
       setApproving(false);
     }
