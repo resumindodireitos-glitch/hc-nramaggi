@@ -217,15 +217,36 @@ export default function AIAgents() {
     }
   };
 
+  // Sanitize filename for storage - remove accents and special characters
+  const sanitizeFileName = (name: string): string => {
+    // Remove file extension first
+    const ext = name.split('.').pop() || '';
+    const baseName = name.replace(/\.[^/.]+$/, '');
+    
+    // Remove accents/diacritics
+    const normalized = baseName.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    
+    // Replace spaces and special characters with underscores
+    const sanitized = normalized
+      .replace(/[^a-zA-Z0-9._-]/g, '_')
+      .replace(/_+/g, '_')
+      .replace(/^_|_$/g, '');
+    
+    return `${sanitized}.${ext}`;
+  };
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     setUploading(true);
     try {
-      // Use knowledge-docs folder (same as existing documents)
-      const fileName = `${Date.now()}-${file.name.replace(/\s+/g, '_')}`;
+      // Sanitize filename for Supabase storage
+      const sanitizedName = sanitizeFileName(file.name);
+      const fileName = `${Date.now()}-${sanitizedName}`;
       const filePath = `knowledge-docs/${fileName}`;
+
+      console.log("Uploading file:", filePath);
 
       const { error: uploadError } = await supabase.storage
         .from("knowledge-base")
@@ -234,12 +255,16 @@ export default function AIAgents() {
           upsert: false
         });
 
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        console.error("Storage upload error:", uploadError);
+        throw uploadError;
+      }
 
+      // Store original name for display, sanitized path for storage
       const { data: doc, error: docError } = await supabase
         .from("knowledge_documents")
         .insert({
-          name: file.name.replace(/\.[^/.]+$/, ""), // Remove extension for display name
+          name: file.name.replace(/\.[^/.]+$/, ""), // Keep original name for display
           file_path: filePath,
           file_type: file.type || file.name.split('.').pop() || 'unknown',
           file_size: file.size,
