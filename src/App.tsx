@@ -33,6 +33,7 @@ import SystemUpdates from "./pages/SystemUpdates";
 import LGPDManagement from "./pages/LGPDManagement";
 import RiskMatrixDashboard from "./pages/RiskMatrixDashboard";
 import AggregatedReports from "./pages/AggregatedReports";
+import CronJobsDashboard from "./pages/CronJobsDashboard";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -250,6 +251,14 @@ const App = () => (
               element={
                 <ProtectedRoute requireAdmin>
                   <AggregatedReports />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/cron-jobs"
+              element={
+                <ProtectedRoute requireAdmin>
+                  <CronJobsDashboard />
                 </ProtectedRoute>
               }
             />
