@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
   DialogContent,
@@ -24,34 +26,74 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Loader2, Plus, Pencil, Users, Search, Shield, User, UserPlus, Mail, Lock } from "lucide-react";
+import { 
+  Loader2, Plus, Pencil, Users, Search, Shield, User, UserPlus, 
+  Mail, Lock, MoreHorizontal, KeyRound, Crown, Eye, EyeOff,
+  UserCheck, UserX, RefreshCw
+} from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { z } from "zod";
 import type { Database } from "@/integrations/supabase/types";
 
 type Profile = Database["public"]["Tables"]["profiles"]["Row"];
 type UserRole = Database["public"]["Enums"]["user_role"];
+type AppRole = Database["public"]["Enums"]["app_role"];
+
+interface UserWithRoles extends Profile {
+  appRoles: AppRole[];
+}
+
+// Zod Schemas
+const createUserSchema = z.object({
+  email: z.string().trim().email("Email inválido").max(255, "Email muito longo"),
+  password: z.string().min(6, "Senha deve ter no mínimo 6 caracteres").max(72, "Senha muito longa"),
+  fullName: z.string().trim().min(2, "Nome deve ter pelo menos 2 caracteres").max(100, "Nome muito longo"),
+  role: z.enum(["admin_hc", "employee_amaggi"]),
+  department: z.string().max(100).optional(),
+  jobTitle: z.string().max(100).optional(),
+  company: z.string().max(100).optional(),
+});
+
+const updateUserSchema = z.object({
+  fullName: z.string().trim().min(2, "Nome deve ter pelo menos 2 caracteres").max(100, "Nome muito longo"),
+  role: z.enum(["admin_hc", "employee_amaggi"]),
+  department: z.string().max(100).optional(),
+  jobTitle: z.string().max(100).optional(),
+  company: z.string().max(100).optional(),
+});
+
+const passwordSchema = z.object({
+  password: z.string().min(6, "Senha deve ter no mínimo 6 caracteres").max(72, "Senha muito longa"),
+});
 
 export default function UserManagement() {
   const navigate = useNavigate();
-  const { isAdmin } = useAuthContext();
-  const [profiles, setProfiles] = useState<Profile[]>([]);
+  const { isAdmin, isSuperAdmin, profile: currentUser } = useAuthContext();
+  const [users, setUsers] = useState<UserWithRoles[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [editingUser, setEditingUser] = useState<Profile | null>(null);
-  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [activeTab, setActiveTab] = useState("all");
+  
+  // Dialogs
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [showPasswordDialog, setShowPasswordDialog] = useState(false);
+  const [showRolesDialog, setShowRolesDialog] = useState(false);
+  
+  const [editingUser, setEditingUser] = useState<UserWithRoles | null>(null);
   const [saving, setSaving] = useState(false);
-
-  // Edit form state
-  const [editFullName, setEditFullName] = useState("");
-  const [editEmail, setEditEmail] = useState("");
-  const [editRole, setEditRole] = useState<UserRole>("employee_amaggi");
-  const [editDepartment, setEditDepartment] = useState("");
-  const [editJobTitle, setEditJobTitle] = useState("");
-  const [editCompany, setEditCompany] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Create form state
   const [newEmail, setNewEmail] = useState("");
@@ -62,41 +104,77 @@ export default function UserManagement() {
   const [newJobTitle, setNewJobTitle] = useState("");
   const [newCompany, setNewCompany] = useState("Amaggi");
 
+  // Edit form state
+  const [editFullName, setEditFullName] = useState("");
+  const [editRole, setEditRole] = useState<UserRole>("employee_amaggi");
+  const [editDepartment, setEditDepartment] = useState("");
+  const [editJobTitle, setEditJobTitle] = useState("");
+  const [editCompany, setEditCompany] = useState("");
+
+  // Password reset state
+  const [resetPassword, setResetPassword] = useState("");
+
+  // Role management state
+  const [selectedAppRoles, setSelectedAppRoles] = useState<AppRole[]>([]);
+
   useEffect(() => {
     if (!isAdmin) {
       toast.error("Acesso negado");
       navigate("/dashboard");
       return;
     }
-    fetchProfiles();
+    fetchUsers();
   }, [isAdmin]);
 
-  const fetchProfiles = async () => {
+  const fetchUsers = async () => {
     try {
-      const { data, error } = await supabase
+      setLoading(true);
+      
+      // Fetch profiles
+      const { data: profiles, error: profilesError } = await supabase
         .from("profiles")
         .select("*")
         .order("created_at", { ascending: false });
 
-      if (error) throw error;
-      setProfiles(data || []);
+      if (profilesError) throw profilesError;
+
+      // Fetch all user roles
+      const { data: rolesData, error: rolesError } = await supabase
+        .from("user_roles")
+        .select("user_id, role");
+
+      if (rolesError) {
+        console.error("Error fetching roles:", rolesError);
+      }
+
+      // Map roles to users
+      const usersWithRoles: UserWithRoles[] = (profiles || []).map((profile) => {
+        const userRoles = rolesData?.filter(r => r.user_id === profile.id).map(r => r.role) || [];
+        return { ...profile, appRoles: userRoles };
+      });
+
+      setUsers(usersWithRoles);
     } catch (error) {
-      console.error("Error fetching profiles:", error);
+      console.error("Error fetching users:", error);
       toast.error("Erro ao carregar usuários");
     } finally {
       setLoading(false);
     }
   };
 
-  const openEditDialog = (profile: Profile) => {
-    setEditingUser(profile);
-    setEditFullName(profile.full_name);
-    setEditEmail(profile.email);
-    setEditRole(profile.role);
-    setEditDepartment(profile.department || "");
-    setEditJobTitle(profile.job_title || "");
-    setEditCompany(profile.company || "");
-    setShowEditDialog(true);
+  const validateForm = <T extends z.ZodSchema>(schema: T, data: unknown): boolean => {
+    const result = schema.safeParse(data);
+    if (!result.success) {
+      const newErrors: Record<string, string> = {};
+      result.error.errors.forEach((err) => {
+        const path = err.path.join(".");
+        newErrors[path] = err.message;
+      });
+      setErrors(newErrors);
+      return false;
+    }
+    setErrors({});
+    return true;
   };
 
   const openCreateDialog = () => {
@@ -107,22 +185,49 @@ export default function UserManagement() {
     setNewDepartment("");
     setNewJobTitle("");
     setNewCompany("Amaggi");
+    setErrors({});
     setShowCreateDialog(true);
   };
 
-  const handleCreateUser = async () => {
-    if (!newEmail || !newPassword || !newFullName) {
-      toast.error("Preencha todos os campos obrigatórios");
-      return;
-    }
+  const openEditDialog = (user: UserWithRoles) => {
+    setEditingUser(user);
+    setEditFullName(user.full_name);
+    setEditRole(user.role);
+    setEditDepartment(user.department || "");
+    setEditJobTitle(user.job_title || "");
+    setEditCompany(user.company || "");
+    setErrors({});
+    setShowEditDialog(true);
+  };
 
-    if (newPassword.length < 6) {
-      toast.error("A senha deve ter no mínimo 6 caracteres");
-      return;
-    }
+  const openPasswordDialog = (user: UserWithRoles) => {
+    setEditingUser(user);
+    setResetPassword("");
+    setShowPassword(false);
+    setErrors({});
+    setShowPasswordDialog(true);
+  };
+
+  const openRolesDialog = (user: UserWithRoles) => {
+    setEditingUser(user);
+    setSelectedAppRoles([...user.appRoles]);
+    setShowRolesDialog(true);
+  };
+
+  const handleCreateUser = async () => {
+    const formData = {
+      email: newEmail,
+      password: newPassword,
+      fullName: newFullName,
+      role: newRole,
+      department: newDepartment || undefined,
+      jobTitle: newJobTitle || undefined,
+      company: newCompany || undefined,
+    };
+
+    if (!validateForm(createUserSchema, formData)) return;
 
     setSaving(true);
-
     try {
       // Create user in auth
       const { data: authData, error: authError } = await supabase.auth.signUp({
@@ -157,10 +262,10 @@ export default function UserManagement() {
       }
 
       toast.success("Usuário criado com sucesso!", {
-        description: "O usuário pode fazer login com as credenciais informadas.",
+        description: `${newFullName} pode fazer login com o email ${newEmail}`,
       });
       setShowCreateDialog(false);
-      fetchProfiles();
+      fetchUsers();
     } catch (error: any) {
       console.error("Error creating user:", error);
       if (error.message?.includes("already registered")) {
@@ -175,8 +280,18 @@ export default function UserManagement() {
 
   const handleSaveUser = async () => {
     if (!editingUser) return;
-    setSaving(true);
 
+    const formData = {
+      fullName: editFullName,
+      role: editRole,
+      department: editDepartment || undefined,
+      jobTitle: editJobTitle || undefined,
+      company: editCompany || undefined,
+    };
+
+    if (!validateForm(updateUserSchema, formData)) return;
+
+    setSaving(true);
     try {
       const { error } = await supabase
         .from("profiles")
@@ -191,9 +306,9 @@ export default function UserManagement() {
 
       if (error) throw error;
 
-      toast.success("Usuário atualizado!");
+      toast.success("Usuário atualizado com sucesso!");
       setShowEditDialog(false);
-      fetchProfiles();
+      fetchUsers();
     } catch (error) {
       console.error("Error updating user:", error);
       toast.error("Erro ao atualizar usuário");
@@ -202,25 +317,132 @@ export default function UserManagement() {
     }
   };
 
-  const filteredProfiles = profiles.filter(
-    (profile) =>
-      profile.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      profile.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (profile.department?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false)
-  );
+  const handleResetPassword = async () => {
+    if (!editingUser) return;
 
-  const getRoleBadge = (role: UserRole) => {
-    return role === "admin_hc" ? (
-      <Badge className="bg-primary/10 text-primary border-0">
-        <Shield className="h-3 w-3 mr-1" />
-        Admin
-      </Badge>
-    ) : (
-      <Badge variant="secondary" className="border-0">
-        <User className="h-3 w-3 mr-1" />
-        Colaborador
-      </Badge>
+    if (!validateForm(passwordSchema, { password: resetPassword })) return;
+
+    setSaving(true);
+    try {
+      const { error } = await supabase.functions.invoke("update-password", {
+        body: { 
+          userId: editingUser.id,
+          newPassword: resetPassword 
+        },
+      });
+
+      if (error) throw error;
+
+      toast.success("Senha alterada com sucesso!", {
+        description: `A nova senha foi definida para ${editingUser.full_name}`,
+      });
+      setShowPasswordDialog(false);
+    } catch (error: any) {
+      console.error("Error resetting password:", error);
+      toast.error("Erro ao redefinir senha", { description: error.message });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleUpdateRoles = async () => {
+    if (!editingUser || !isSuperAdmin) return;
+
+    setSaving(true);
+    try {
+      // Delete existing roles for user
+      const { error: deleteError } = await supabase
+        .from("user_roles")
+        .delete()
+        .eq("user_id", editingUser.id);
+
+      if (deleteError) throw deleteError;
+
+      // Insert new roles
+      if (selectedAppRoles.length > 0) {
+        const rolesToInsert = selectedAppRoles.map(role => ({
+          user_id: editingUser.id,
+          role,
+        }));
+
+        const { error: insertError } = await supabase
+          .from("user_roles")
+          .insert(rolesToInsert);
+
+        if (insertError) throw insertError;
+      }
+
+      toast.success("Permissões atualizadas com sucesso!");
+      setShowRolesDialog(false);
+      fetchUsers();
+    } catch (error: any) {
+      console.error("Error updating roles:", error);
+      toast.error("Erro ao atualizar permissões", { description: error.message });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const toggleAppRole = (role: AppRole) => {
+    setSelectedAppRoles(prev => 
+      prev.includes(role) 
+        ? prev.filter(r => r !== role) 
+        : [...prev, role]
     );
+  };
+
+  // Filter users
+  const filteredUsers = users.filter((user) => {
+    const matchesSearch = 
+      user.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (user.department?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false);
+
+    if (activeTab === "all") return matchesSearch;
+    if (activeTab === "admins") return matchesSearch && (user.role === "admin_hc" || user.appRoles.includes("admin_hc") || user.appRoles.includes("super_admin"));
+    if (activeTab === "employees") return matchesSearch && user.role === "employee_amaggi" && !user.appRoles.includes("admin_hc") && !user.appRoles.includes("super_admin");
+    return matchesSearch;
+  });
+
+  // Stats
+  const totalUsers = users.length;
+  const adminCount = users.filter(u => u.role === "admin_hc" || u.appRoles.includes("admin_hc") || u.appRoles.includes("super_admin")).length;
+  const employeeCount = users.filter(u => u.role === "employee_amaggi" && !u.appRoles.includes("admin_hc") && !u.appRoles.includes("super_admin")).length;
+  const superAdminCount = users.filter(u => u.appRoles.includes("super_admin")).length;
+
+  const getRoleBadges = (user: UserWithRoles) => {
+    const badges = [];
+    
+    if (user.appRoles.includes("super_admin")) {
+      badges.push(
+        <Badge key="super" className="bg-amber-500/10 text-amber-600 border-0 mr-1">
+          <Crown className="h-3 w-3 mr-1" />
+          Super Admin
+        </Badge>
+      );
+    }
+    
+    if (user.appRoles.includes("admin_hc") || user.role === "admin_hc") {
+      badges.push(
+        <Badge key="admin" className="bg-primary/10 text-primary border-0 mr-1">
+          <Shield className="h-3 w-3 mr-1" />
+          Admin
+        </Badge>
+      );
+    }
+    
+    if (badges.length === 0 || user.role === "employee_amaggi") {
+      if (!user.appRoles.includes("admin_hc") && !user.appRoles.includes("super_admin")) {
+        badges.push(
+          <Badge key="employee" variant="secondary" className="border-0">
+            <User className="h-3 w-3 mr-1" />
+            Colaborador
+          </Badge>
+        );
+      }
+    }
+    
+    return badges;
   };
 
   if (loading) {
@@ -236,6 +458,7 @@ export default function UserManagement() {
   return (
     <AppLayout>
       <div className="space-y-6">
+        {/* Header */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
@@ -243,26 +466,96 @@ export default function UserManagement() {
               Gerenciamento de Usuários
             </h1>
             <p className="text-muted-foreground text-sm mt-1">
-              {profiles.length} usuário(s) cadastrado(s) no sistema
+              Crie, edite e gerencie os acessos ao sistema
             </p>
           </div>
-          <Button onClick={openCreateDialog} className="gradient-primary shadow-lg shadow-primary/20">
-            <UserPlus className="h-4 w-4 mr-2" />
-            Novo Usuário
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={fetchUsers} size="icon">
+              <RefreshCw className="h-4 w-4" />
+            </Button>
+            <Button onClick={openCreateDialog} className="gradient-primary shadow-lg shadow-primary/20">
+              <UserPlus className="h-4 w-4 mr-2" />
+              Novo Usuário
+            </Button>
+          </div>
         </div>
 
-        {/* Search */}
+        {/* Stats Cards */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <Card className="border-border/50">
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-primary/10">
+                  <Users className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{totalUsers}</p>
+                  <p className="text-xs text-muted-foreground">Total</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="border-border/50">
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-amber-500/10">
+                  <Crown className="h-5 w-5 text-amber-600" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{superAdminCount}</p>
+                  <p className="text-xs text-muted-foreground">Super Admins</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="border-border/50">
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-blue-500/10">
+                  <Shield className="h-5 w-5 text-blue-500" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{adminCount}</p>
+                  <p className="text-xs text-muted-foreground">Administradores</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="border-border/50">
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-green-500/10">
+                  <UserCheck className="h-5 w-5 text-green-500" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{employeeCount}</p>
+                  <p className="text-xs text-muted-foreground">Colaboradores</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Search and Filter */}
         <Card className="border-border/50">
           <CardContent className="pt-6">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar por nome, email ou departamento..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 h-11"
-              />
+            <div className="flex flex-col md:flex-row gap-4">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar por nome, email ou departamento..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 h-11"
+                />
+              </div>
+              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full md:w-auto">
+                <TabsList>
+                  <TabsTrigger value="all">Todos</TabsTrigger>
+                  <TabsTrigger value="admins">Admins</TabsTrigger>
+                  <TabsTrigger value="employees">Colaboradores</TabsTrigger>
+                </TabsList>
+              </Tabs>
             </div>
           </CardContent>
         </Card>
@@ -271,7 +564,9 @@ export default function UserManagement() {
         <Card className="border-border/50">
           <CardHeader>
             <CardTitle className="text-lg">Lista de Usuários</CardTitle>
-            <CardDescription>Gerencie os acessos ao sistema</CardDescription>
+            <CardDescription>
+              {filteredUsers.length} usuário(s) encontrado(s)
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">
@@ -280,7 +575,7 @@ export default function UserManagement() {
                   <TableRow className="hover:bg-transparent">
                     <TableHead className="font-semibold">Nome</TableHead>
                     <TableHead className="font-semibold">Email</TableHead>
-                    <TableHead className="font-semibold">Função</TableHead>
+                    <TableHead className="font-semibold">Permissões</TableHead>
                     <TableHead className="font-semibold">Departamento</TableHead>
                     <TableHead className="font-semibold">Empresa</TableHead>
                     <TableHead className="font-semibold">Cadastrado em</TableHead>
@@ -288,7 +583,7 @@ export default function UserManagement() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredProfiles.length === 0 ? (
+                  {filteredUsers.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
                         <Users className="h-12 w-12 mx-auto mb-3 opacity-20" />
@@ -296,27 +591,49 @@ export default function UserManagement() {
                       </TableCell>
                     </TableRow>
                   ) : (
-                    filteredProfiles.map((profile) => (
-                      <TableRow key={profile.id} className="group">
-                        <TableCell className="font-medium">{profile.full_name}</TableCell>
-                        <TableCell className="text-muted-foreground">{profile.email}</TableCell>
-                        <TableCell>{getRoleBadge(profile.role)}</TableCell>
-                        <TableCell className="text-muted-foreground">{profile.department || "—"}</TableCell>
-                        <TableCell className="text-muted-foreground">{profile.company || "—"}</TableCell>
+                    filteredUsers.map((user) => (
+                      <TableRow key={user.id} className="group">
+                        <TableCell className="font-medium">{user.full_name}</TableCell>
+                        <TableCell className="text-muted-foreground">{user.email}</TableCell>
+                        <TableCell>
+                          <div className="flex flex-wrap gap-1">
+                            {getRoleBadges(user)}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">{user.department || "—"}</TableCell>
+                        <TableCell className="text-muted-foreground">{user.company || "—"}</TableCell>
                         <TableCell className="text-muted-foreground">
-                          {profile.created_at
-                            ? format(new Date(profile.created_at), "dd/MM/yyyy", { locale: ptBR })
+                          {user.created_at
+                            ? format(new Date(user.created_at), "dd/MM/yyyy", { locale: ptBR })
                             : "—"}
                         </TableCell>
                         <TableCell className="text-right">
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            onClick={() => openEditDialog(profile)}
-                            className="opacity-0 group-hover:opacity-100 transition-opacity"
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => openEditDialog(user)}>
+                                <Pencil className="h-4 w-4 mr-2" />
+                                Editar Dados
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => openPasswordDialog(user)}>
+                                <KeyRound className="h-4 w-4 mr-2" />
+                                Redefinir Senha
+                              </DropdownMenuItem>
+                              {isSuperAdmin && (
+                                <>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem onClick={() => openRolesDialog(user)}>
+                                    <Shield className="h-4 w-4 mr-2" />
+                                    Gerenciar Permissões
+                                  </DropdownMenuItem>
+                                </>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </TableCell>
                       </TableRow>
                     ))
@@ -347,8 +664,9 @@ export default function UserManagement() {
                     value={newFullName} 
                     onChange={(e) => setNewFullName(e.target.value)} 
                     placeholder="Nome do usuário"
-                    className="h-10"
+                    className={`h-10 ${errors.fullName ? "border-destructive" : ""}`}
                   />
+                  {errors.fullName && <p className="text-xs text-destructive">{errors.fullName}</p>}
                 </div>
                 <div className="space-y-2">
                   <Label className="text-sm font-medium">Email *</Label>
@@ -359,22 +677,33 @@ export default function UserManagement() {
                       value={newEmail} 
                       onChange={(e) => setNewEmail(e.target.value)} 
                       placeholder="email@empresa.com"
-                      className="pl-10 h-10"
+                      className={`pl-10 h-10 ${errors.email ? "border-destructive" : ""}`}
                     />
                   </div>
+                  {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
                 </div>
                 <div className="space-y-2">
                   <Label className="text-sm font-medium">Senha *</Label>
                   <div className="relative">
                     <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input 
-                      type="password"
+                      type={showPassword ? "text" : "password"}
                       value={newPassword} 
                       onChange={(e) => setNewPassword(e.target.value)} 
                       placeholder="Mínimo 6 caracteres"
-                      className="pl-10 h-10"
+                      className={`pl-10 pr-10 h-10 ${errors.password ? "border-destructive" : ""}`}
                     />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="absolute right-0 top-0 h-10 w-10"
+                      onClick={() => setShowPassword(!showPassword)}
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </Button>
                   </div>
+                  {errors.password && <p className="text-xs text-destructive">{errors.password}</p>}
                 </div>
                 <div className="space-y-2">
                   <Label className="text-sm font-medium">Tipo de Acesso</Label>
@@ -429,7 +758,7 @@ export default function UserManagement() {
           </DialogContent>
         </Dialog>
 
-        {/* Edit Dialog */}
+        {/* Edit User Dialog */}
         <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
           <DialogContent className="sm:max-w-lg">
             <DialogHeader>
@@ -437,7 +766,7 @@ export default function UserManagement() {
                 <Pencil className="h-5 w-5 text-primary" />
                 Editar Usuário
               </DialogTitle>
-              <DialogDescription>Atualize as informações do usuário</DialogDescription>
+              <DialogDescription>Atualize as informações de {editingUser?.full_name}</DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="grid grid-cols-2 gap-4">
@@ -446,12 +775,14 @@ export default function UserManagement() {
                   <Input 
                     value={editFullName} 
                     onChange={(e) => setEditFullName(e.target.value)} 
-                    className="h-10"
+                    className={`h-10 ${errors.fullName ? "border-destructive" : ""}`}
                   />
+                  {errors.fullName && <p className="text-xs text-destructive">{errors.fullName}</p>}
                 </div>
                 <div className="col-span-2 space-y-2">
                   <Label className="text-sm font-medium">Email</Label>
-                  <Input value={editEmail} disabled className="bg-muted h-10" />
+                  <Input value={editingUser?.email || ""} disabled className="bg-muted h-10" />
+                  <p className="text-xs text-muted-foreground">O email não pode ser alterado</p>
                 </div>
                 <div className="space-y-2">
                   <Label className="text-sm font-medium">Tipo de Acesso</Label>
@@ -498,6 +829,122 @@ export default function UserManagement() {
               <Button onClick={handleSaveUser} disabled={saving} className="gradient-primary">
                 {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                 Salvar Alterações
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Password Reset Dialog */}
+        <Dialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <KeyRound className="h-5 w-5 text-primary" />
+                Redefinir Senha
+              </DialogTitle>
+              <DialogDescription>
+                Defina uma nova senha para {editingUser?.full_name}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Nova Senha *</Label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input 
+                    type={showPassword ? "text" : "password"}
+                    value={resetPassword} 
+                    onChange={(e) => setResetPassword(e.target.value)} 
+                    placeholder="Mínimo 6 caracteres"
+                    className={`pl-10 pr-10 h-10 ${errors.password ? "border-destructive" : ""}`}
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-0 top-0 h-10 w-10"
+                    onClick={() => setShowPassword(!showPassword)}
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </Button>
+                </div>
+                {errors.password && <p className="text-xs text-destructive">{errors.password}</p>}
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowPasswordDialog(false)}>
+                Cancelar
+              </Button>
+              <Button onClick={handleResetPassword} disabled={saving} className="gradient-primary">
+                {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                Redefinir Senha
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Roles Management Dialog (Super Admin Only) */}
+        <Dialog open={showRolesDialog} onOpenChange={setShowRolesDialog}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Shield className="h-5 w-5 text-primary" />
+                Gerenciar Permissões
+              </DialogTitle>
+              <DialogDescription>
+                Configure as permissões avançadas para {editingUser?.full_name}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between p-4 border rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <Crown className="h-5 w-5 text-amber-500" />
+                    <div>
+                      <p className="font-medium">Super Admin</p>
+                      <p className="text-xs text-muted-foreground">Acesso total ao sistema</p>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={selectedAppRoles.includes("super_admin")}
+                    onCheckedChange={() => toggleAppRole("super_admin")}
+                  />
+                </div>
+                <div className="flex items-center justify-between p-4 border rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <Shield className="h-5 w-5 text-primary" />
+                    <div>
+                      <p className="font-medium">Administrador HC</p>
+                      <p className="text-xs text-muted-foreground">Gerencia formulários e relatórios</p>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={selectedAppRoles.includes("admin_hc")}
+                    onCheckedChange={() => toggleAppRole("admin_hc")}
+                  />
+                </div>
+                <div className="flex items-center justify-between p-4 border rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <User className="h-5 w-5 text-muted-foreground" />
+                    <div>
+                      <p className="font-medium">Colaborador Amaggi</p>
+                      <p className="text-xs text-muted-foreground">Acesso básico de visualização</p>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={selectedAppRoles.includes("employee_amaggi")}
+                    onCheckedChange={() => toggleAppRole("employee_amaggi")}
+                  />
+                </div>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowRolesDialog(false)}>
+                Cancelar
+              </Button>
+              <Button onClick={handleUpdateRoles} disabled={saving} className="gradient-primary">
+                {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                Salvar Permissões
               </Button>
             </DialogFooter>
           </DialogContent>
