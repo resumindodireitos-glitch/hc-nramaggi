@@ -21,8 +21,11 @@ import {
   Loader2,
   RefreshCw,
   Download,
-  Eye
+  Eye,
+  FileText,
+  Printer
 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts";
 
 interface AggregatedReport {
@@ -52,12 +55,16 @@ const RISK_COLORS: Record<string, string> = {
 
 export default function AggregatedReports() {
   const navigate = useNavigate();
-  const { isAdmin } = useAuthContext();
+  const { isAdmin, isSuperAdmin } = useAuthContext();
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<AggregatedReport[]>([]);
   const [filterType, setFilterType] = useState<string>("all");
   const [filterSetor, setFilterSetor] = useState<string>("all");
   const [setores, setSetores] = useState<string[]>([]);
+  const [generatingPdf, setGeneratingPdf] = useState(false);
+  const [selectedReport, setSelectedReport] = useState<AggregatedReport | null>(null);
+  const [showDetailDialog, setShowDetailDialog] = useState(false);
+  const [detailData, setDetailData] = useState<any[]>([]);
 
   useEffect(() => {
     if (!isAdmin) {
@@ -161,6 +168,128 @@ export default function AggregatedReports() {
     URL.revokeObjectURL(url);
   };
 
+  // Fetch individual data for a cargo/setor (super admin only)
+  const fetchDetailData = async (item: AggregatedReport) => {
+    if (!isSuperAdmin) {
+      toast.error("Acesso restrito a super administradores");
+      return;
+    }
+    
+    setSelectedReport(item);
+    setShowDetailDialog(true);
+    
+    try {
+      const { data: responses, error } = await supabase.rpc("get_individual_responses_by_role", {
+        target_cargo: item.cargo || "",
+        target_setor: item.setor || undefined
+      });
+
+      if (error) throw error;
+      setDetailData(responses || []);
+    } catch (error) {
+      console.error("Error fetching detail data:", error);
+      toast.error("Erro ao carregar dados detalhados");
+    }
+  };
+
+  // Generate aggregated PDF report for setor/cargo
+  const generateAggregatedPdf = async () => {
+    setGeneratingPdf(true);
+    try {
+      const htmlContent = generateAggregatedReportHtml(filteredData, filterSetor, filterType);
+      const blob = new Blob([htmlContent], { type: "text/html" });
+      const url = URL.createObjectURL(blob);
+      const printWindow = window.open(url, "_blank");
+      
+      if (printWindow) {
+        printWindow.onload = () => {
+          printWindow.print();
+        };
+      }
+      
+      toast.success("Relatório gerado! Use Ctrl+P para salvar como PDF.");
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      toast.error("Erro ao gerar relatório");
+    } finally {
+      setGeneratingPdf(false);
+    }
+  };
+
+  const generateAggregatedReportHtml = (reportData: AggregatedReport[], setor: string, tipo: string) => {
+    const today = new Date().toLocaleDateString("pt-BR");
+    
+    const tableRows = reportData.map(item => `
+      <tr>
+        <td>${item.cargo || "-"}</td>
+        <td>${item.setor || "-"}</td>
+        <td>${item.total_submissions || 0}</td>
+        <td>${item.approved_reports || 0}</td>
+        <td>${item.avg_risk_score?.toFixed(1) || "-"}%</td>
+        <td class="risk-${(item.most_common_risk_level || "").toLowerCase()}">${item.most_common_risk_level || "N/A"}</td>
+      </tr>
+    `).join("");
+
+    return `
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <title>Relatório Agregado - AET</title>
+  <style>
+    @page { size: A4 landscape; margin: 1.5cm; }
+    @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+    body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 10pt; color: #333; }
+    .header { border-bottom: 3px solid #005c42; padding-bottom: 10px; margin-bottom: 20px; }
+    .header h1 { color: #005c42; font-size: 16pt; margin: 0; }
+    .header p { color: #666; margin: 5px 0 0; }
+    .meta { display: flex; justify-content: space-between; margin-bottom: 15px; font-size: 9pt; color: #666; }
+    table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+    th { background: #005c42; color: white; }
+    tr:nth-child(even) { background: #f9f9f9; }
+    .risk-baixo, .risk-toleravel, .risk-trivial { background: #dcfce7; color: #166534; }
+    .risk-medio, .risk-moderado { background: #fef3c7; color: #92400e; }
+    .risk-alto, .risk-substancial { background: #fed7aa; color: #c2410c; }
+    .risk-critico, .risk-intoleravel { background: #fecaca; color: #b91c1c; }
+    .footer { margin-top: 30px; font-size: 8pt; color: #666; border-top: 1px solid #ddd; padding-top: 10px; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>RELATÓRIO AGREGADO - ANÁLISE ERGONÔMICA DO TRABALHO</h1>
+    <p>HC Consultoria em Ergonomia e Fisioterapia</p>
+  </div>
+  <div class="meta">
+    <span>Data: ${today}</span>
+    <span>Filtro Setor: ${setor === "all" ? "Todos" : setor}</span>
+    <span>Tipo: ${tipo === "all" ? "Todos" : tipo.toUpperCase()}</span>
+    <span>Total de registros: ${reportData.length}</span>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>Cargo</th>
+        <th>Setor</th>
+        <th>Participantes</th>
+        <th>Aprovados</th>
+        <th>Risco Médio</th>
+        <th>Nível Predominante</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${tableRows}
+    </tbody>
+  </table>
+  <div class="footer">
+    <p>Este relatório apresenta dados agregados respeitando a LGPD. Nenhum dado individual é exposto.</p>
+    <p>Referências: NR-01 | NR-17 | ISO 45003</p>
+  </div>
+</body>
+</html>
+    `;
+  };
+
   if (loading) {
     return (
       <AppLayout>
@@ -185,7 +314,7 @@ export default function AggregatedReports() {
               Estatísticas por cargo/setor sem exposição de dados individuais (LGPD)
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <Button variant="outline" size="sm" onClick={fetchData}>
               <RefreshCw className="h-4 w-4 mr-2" />
               Atualizar
@@ -193,6 +322,10 @@ export default function AggregatedReports() {
             <Button variant="outline" size="sm" onClick={exportCSV}>
               <Download className="h-4 w-4 mr-2" />
               Exportar CSV
+            </Button>
+            <Button size="sm" onClick={generateAggregatedPdf} disabled={generatingPdf}>
+              {generatingPdf ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Printer className="h-4 w-4 mr-2" />}
+              Gerar PDF
             </Button>
           </div>
         </div>
@@ -361,12 +494,13 @@ export default function AggregatedReports() {
                     <TableHead className="text-center">Participantes</TableHead>
                     <TableHead className="text-center hidden sm:table-cell">Aprovados</TableHead>
                     <TableHead className="text-center">Nível Risco</TableHead>
+                    {isSuperAdmin && <TableHead className="text-center">Ações</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredData.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={isSuperAdmin ? 7 : 6} className="text-center py-8 text-muted-foreground">
                         Nenhum dado encontrado com os filtros selecionados
                       </TableCell>
                     </TableRow>
@@ -385,6 +519,19 @@ export default function AggregatedReports() {
                             {item.most_common_risk_level || "N/A"}
                           </Badge>
                         </TableCell>
+                        {isSuperAdmin && (
+                          <TableCell className="text-center">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => fetchDetailData(item)}
+                              className="h-8 gap-1"
+                            >
+                              <Eye className="h-3.5 w-3.5" />
+                              Ver nomes
+                            </Button>
+                          </TableCell>
+                        )}
                       </TableRow>
                     ))
                   )}
@@ -393,6 +540,62 @@ export default function AggregatedReports() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Detail Dialog for Super Admin */}
+        <Dialog open={showDetailDialog} onOpenChange={setShowDetailDialog}>
+          <DialogContent className="max-w-3xl max-h-[80vh] overflow-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                Detalhes - {selectedReport?.cargo}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="flex gap-4 text-sm text-muted-foreground">
+                <span>Setor: <strong>{selectedReport?.setor}</strong></span>
+                <span>Total: <strong>{selectedReport?.total_submissions}</strong></span>
+              </div>
+              <div className="border rounded-lg overflow-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Nome</TableHead>
+                      <TableHead>Setor</TableHead>
+                      <TableHead>Cargo</TableHead>
+                      <TableHead>Data</TableHead>
+                      <TableHead>Risco</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {detailData.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center py-4 text-muted-foreground">
+                          Nenhum registro encontrado
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      detailData.map((item, i) => (
+                        <TableRow key={i}>
+                          <TableCell className="font-medium">{item.nome || "-"}</TableCell>
+                          <TableCell>{item.setor || "-"}</TableCell>
+                          <TableCell>{item.cargo || "-"}</TableCell>
+                          <TableCell>
+                            {item.submitted_at ? new Date(item.submitted_at).toLocaleDateString("pt-BR") : "-"}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className={getRiskBadge(item.risk_level)}>
+                              {item.risk_level || "N/A"}
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </AppLayout>
   );
