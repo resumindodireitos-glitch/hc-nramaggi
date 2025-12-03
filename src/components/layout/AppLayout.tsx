@@ -25,6 +25,7 @@ import {
   Brain,
   ScrollText,
   Inbox,
+  Activity,
 } from "lucide-react";
 import logoHC from "@/assets/logo-hc-new.png";
 import { AppHeader } from "./AppHeader";
@@ -45,6 +46,7 @@ const navItems: NavItem[] = [
   { label: "Organização", href: "/admin/organization", icon: <Building2 className="h-5 w-5" />, adminOnly: true },
   { label: "Gerenciar Forms", href: "/admin/forms", icon: <Settings className="h-5 w-5" />, adminOnly: true },
   { label: "Agentes de IA", href: "/admin/agents", icon: <Brain className="h-5 w-5" />, adminOnly: true },
+  { label: "Uso de IA", href: "/admin/ai-usage", icon: <Activity className="h-5 w-5" />, adminOnly: true },
   { label: "Geração em Massa", href: "/admin/bulk", icon: <FileArchive className="h-5 w-5" />, adminOnly: true },
   { label: "Usuários", href: "/admin/users", icon: <Users className="h-5 w-5" />, adminOnly: true },
   { label: "Logs do Sistema", href: "/admin/logs", icon: <ScrollText className="h-5 w-5" />, adminOnly: true },

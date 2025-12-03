@@ -846,6 +846,10 @@ export type Database = {
         Args: { respondent_data: Json }
         Returns: string
       }
+      generate_respondent_hash_secure: {
+        Args: { respondent_data: Json }
+        Returns: string
+      }
       get_user_role: {
         Args: { user_id: string }
         Returns: Database["public"]["Enums"]["user_role"]

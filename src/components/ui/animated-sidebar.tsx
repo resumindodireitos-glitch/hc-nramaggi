@@ -5,6 +5,12 @@ import { Link, LinkProps } from "react-router-dom";
 import React, { useState, createContext, useContext } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Menu, X } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface Links {
   label: string;
@@ -181,7 +187,8 @@ export const SidebarLink = ({
   onClick?: () => void;
 } & Omit<LinkProps, 'to'>) => {
   const { open, animate } = useSidebar();
-  return (
+  
+  const linkContent = (
     <Link
       to={link.href}
       onClick={onClick}
@@ -247,6 +254,28 @@ export const SidebarLink = ({
       </motion.span>
     </Link>
   );
+
+  // Show tooltip only when sidebar is collapsed
+  if (!open && animate) {
+    return (
+      <TooltipProvider delayDuration={100}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            {linkContent}
+          </TooltipTrigger>
+          <TooltipContent 
+            side="right" 
+            sideOffset={12}
+            className="bg-popover/95 backdrop-blur-sm border-border/50 shadow-lg shadow-black/20 animate-scale-in"
+          >
+            <p className="font-medium">{link.label}</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
+  }
+
+  return linkContent;
 };
 
 export const SidebarLabel = ({
