@@ -11,6 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
+import { cn } from "@/lib/utils";
+import { validateCPF } from "@/lib/cpfUtils";
 import { 
   Loader2, 
   Send, 
@@ -212,6 +214,10 @@ export default function PublicFormSubmit() {
     const cleanedCpf = respondentData.cpf.replace(/\D/g, '');
     if (cleanedCpf.length !== 11) {
       toast.error("CPF é obrigatório (11 dígitos)");
+      return false;
+    }
+    if (!validateCPF(cleanedCpf)) {
+      toast.error("CPF inválido. Verifique os dígitos.");
       return false;
     }
     if (!respondentData.setor.trim()) {
@@ -986,12 +992,44 @@ function QuestionInput({
     case "weighted_radio":
       // ERGOS-style weighted options with elegant cards
       const weightedOptions = (question.options || []) as WeightedOption[];
+      
+      // Helper function to get explicit classes (Tailwind can't purge dynamic classes)
+      const getWeightedClasses = (weight: number, isSelected: boolean) => {
+        if (weight <= 1) {
+          // Green - low weight (good)
+          return isSelected 
+            ? "border-emerald-500 bg-emerald-500/10 shadow-lg shadow-emerald-500/10"
+            : "border-slate-700 hover:border-emerald-500/50 bg-slate-800/30 hover:bg-slate-800/50";
+        } else if (weight <= 2) {
+          // Yellow/Amber - medium weight (attention)
+          return isSelected 
+            ? "border-amber-500 bg-amber-500/10 shadow-lg shadow-amber-500/10"
+            : "border-slate-700 hover:border-amber-500/50 bg-slate-800/30 hover:bg-slate-800/50";
+        } else {
+          // Red/Rose - high weight (concern)
+          return isSelected 
+            ? "border-rose-500 bg-rose-500/10 shadow-lg shadow-rose-500/10"
+            : "border-slate-700 hover:border-rose-500/50 bg-slate-800/30 hover:bg-slate-800/50";
+        }
+      };
+
+      const getWeightedBadgeClasses = (weight: number, isSelected: boolean) => {
+        if (!isSelected) return "bg-slate-700 text-slate-400";
+        if (weight <= 1) return "bg-emerald-500 text-white";
+        if (weight <= 2) return "bg-amber-500 text-white";
+        return "bg-rose-500 text-white";
+      };
+
+      const getWeightedCheckClasses = (weight: number) => {
+        if (weight <= 1) return "bg-emerald-500";
+        if (weight <= 2) return "bg-amber-500";
+        return "bg-rose-500";
+      };
+      
       return (
         <div className="space-y-3">
           {weightedOptions.map((option, index) => {
             const isSelected = value === option.text;
-            // Color based on weight (0=green, 2=yellow, 4=red)
-            const weightColor = option.weight <= 1 ? "emerald" : option.weight <= 2 ? "amber" : "rose";
             
             return (
               <motion.div
@@ -1003,17 +1041,15 @@ function QuestionInput({
                 <button
                   type="button"
                   onClick={() => onChange(option.text)}
-                  className={`w-full flex items-center gap-4 p-5 rounded-2xl border-2 cursor-pointer transition-all text-left ${
-                    isSelected
-                      ? `border-${weightColor}-500 bg-${weightColor}-500/10 shadow-lg shadow-${weightColor}-500/10`
-                      : "border-slate-700 hover:border-slate-600 bg-slate-800/30 hover:bg-slate-800/50"
-                  }`}
+                  className={cn(
+                    "w-full flex items-center gap-4 p-5 rounded-2xl border-2 cursor-pointer transition-all text-left",
+                    getWeightedClasses(option.weight, isSelected)
+                  )}
                 >
-                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-sm font-bold shrink-0 ${
-                    isSelected 
-                      ? `bg-${weightColor}-500 text-white` 
-                      : "bg-slate-700 text-slate-400"
-                  }`}>
+                  <div className={cn(
+                    "w-8 h-8 rounded-xl flex items-center justify-center text-sm font-bold shrink-0",
+                    getWeightedBadgeClasses(option.weight, isSelected)
+                  )}>
                     {String.fromCharCode(65 + index)}
                   </div>
                   <span className={`flex-1 text-lg ${isSelected ? "text-white font-medium" : "text-slate-300"}`}>
@@ -1023,7 +1059,10 @@ function QuestionInput({
                     <motion.div
                       initial={{ scale: 0 }}
                       animate={{ scale: 1 }}
-                      className={`w-6 h-6 rounded-full bg-${weightColor}-500 flex items-center justify-center`}
+                      className={cn(
+                        "w-6 h-6 rounded-full flex items-center justify-center",
+                        getWeightedCheckClasses(option.weight)
+                      )}
                     >
                       <CheckCircle2 className="h-4 w-4 text-white" />
                     </motion.div>
