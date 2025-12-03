@@ -750,6 +750,44 @@ export type Database = {
         }
         Relationships: []
       }
+      question_weights: {
+        Row: {
+          created_at: string | null
+          display_order: number | null
+          form_id: string | null
+          id: string
+          option_text: string
+          question_id: string
+          weight: number
+        }
+        Insert: {
+          created_at?: string | null
+          display_order?: number | null
+          form_id?: string | null
+          id?: string
+          option_text: string
+          question_id: string
+          weight?: number
+        }
+        Update: {
+          created_at?: string | null
+          display_order?: number | null
+          form_id?: string | null
+          id?: string
+          option_text?: string
+          question_id?: string
+          weight?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "question_weights_form_id_fkey"
+            columns: ["form_id"]
+            isOneToOne: false
+            referencedRelation: "forms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       report_signatures: {
         Row: {
           created_at: string | null
