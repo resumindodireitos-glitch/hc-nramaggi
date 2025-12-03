@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,12 +7,16 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Upload, FileSpreadsheet, Check, X, Loader2, Download, AlertTriangle } from "lucide-react";
+import { Upload, Check, X, Loader2, Download, AlertTriangle } from "lucide-react";
 
 type MatrixType = "ergos" | "hseit" | "biomecanicos";
 
 interface CSVRow {
   [key: string]: string;
+}
+
+interface CSVImporterProps {
+  onImportComplete?: () => void;
 }
 
 const MATRIX_CONFIGS: Record<MatrixType, { table: string; columns: string[]; label: string }> = {
@@ -34,7 +37,7 @@ const MATRIX_CONFIGS: Record<MatrixType, { table: string; columns: string[]; lab
   }
 };
 
-export function CSVImporter() {
+export function CSVImporter({ onImportComplete }: CSVImporterProps = {}) {
   const [matrixType, setMatrixType] = useState<MatrixType>("ergos");
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<CSVRow[]>([]);
@@ -153,6 +156,7 @@ export function CSVImporter() {
       setFile(null);
       setPreview([]);
       setHeaders([]);
+      onImportComplete?.();
     } catch (error) {
       console.error("Import error:", error);
       toast.error("Erro ao importar CSV");
@@ -176,129 +180,118 @@ export function CSVImporter() {
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <FileSpreadsheet className="h-5 w-5 text-primary" />
-          Importar Matriz de Riscos (CSV)
-        </CardTitle>
-        <CardDescription>
-          Carregue portfólios personalizados de riscos e medidas de controle
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        {/* Matrix Type Selection */}
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-2">
-            <Label>Tipo de Matriz</Label>
-            <Select value={matrixType} onValueChange={(v) => setMatrixType(v as MatrixType)}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {Object.entries(MATRIX_CONFIGS).map(([key, config]) => (
-                  <SelectItem key={key} value={key}>{config.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex items-end">
-            <Button variant="outline" onClick={downloadTemplate} className="w-full gap-2">
-              <Download className="h-4 w-4" />
-              Baixar Template
-            </Button>
-          </div>
-        </div>
-
-        {/* File Upload */}
+    <div className="space-y-6">
+      {/* Matrix Type Selection */}
+      <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
-          <Label>Arquivo CSV</Label>
-          <div className="flex gap-2">
-            <Input
-              type="file"
-              accept=".csv,.txt"
-              onChange={handleFileChange}
-              className="flex-1"
-            />
-            <Button 
-              onClick={handleImport} 
-              disabled={!file || validationErrors.length > 0 || importing}
-              className="gap-2"
-            >
-              {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-              Importar
-            </Button>
-          </div>
-        </div>
-
-        {/* Validation Errors */}
-        {validationErrors.length > 0 && (
-          <div className="p-4 rounded-lg bg-destructive/10 border border-destructive/20 space-y-2">
-            <div className="flex items-center gap-2 text-destructive font-medium">
-              <AlertTriangle className="h-4 w-4" />
-              Erros de Validação
-            </div>
-            <ul className="text-sm space-y-1">
-              {validationErrors.map((err, i) => (
-                <li key={i} className="flex items-center gap-2">
-                  <X className="h-3 w-3" />
-                  {err}
-                </li>
+          <Label>Tipo de Matriz</Label>
+          <Select value={matrixType} onValueChange={(v) => setMatrixType(v as MatrixType)}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(MATRIX_CONFIGS).map(([key, config]) => (
+                <SelectItem key={key} value={key}>{config.label}</SelectItem>
               ))}
-            </ul>
-          </div>
-        )}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="flex items-end">
+          <Button variant="outline" onClick={downloadTemplate} className="w-full gap-2">
+            <Download className="h-4 w-4" />
+            Baixar Template
+          </Button>
+        </div>
+      </div>
 
-        {/* Preview */}
-        {preview.length > 0 && (
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label>Prévia (primeiras 5 linhas)</Label>
-              <Badge variant="secondary">{file?.name}</Badge>
-            </div>
-            <div className="border rounded-lg overflow-auto max-h-64">
-              <Table>
-                <TableHeader>
-                  <TableRow>
+      {/* File Upload */}
+      <div className="space-y-2">
+        <Label>Arquivo CSV</Label>
+        <div className="flex gap-2">
+          <Input
+            type="file"
+            accept=".csv,.txt"
+            onChange={handleFileChange}
+            className="flex-1"
+          />
+          <Button 
+            onClick={handleImport} 
+            disabled={!file || validationErrors.length > 0 || importing}
+            className="gap-2"
+          >
+            {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+            Importar
+          </Button>
+        </div>
+      </div>
+
+      {/* Validation Errors */}
+      {validationErrors.length > 0 && (
+        <div className="p-4 rounded-lg bg-destructive/10 border border-destructive/20 space-y-2">
+          <div className="flex items-center gap-2 text-destructive font-medium">
+            <AlertTriangle className="h-4 w-4" />
+            Erros de Validação
+          </div>
+          <ul className="text-sm space-y-1">
+            {validationErrors.map((err, i) => (
+              <li key={i} className="flex items-center gap-2">
+                <X className="h-3 w-3" />
+                {err}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Preview */}
+      {preview.length > 0 && (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <Label>Prévia (primeiras 5 linhas)</Label>
+            <Badge variant="secondary">{file?.name}</Badge>
+          </div>
+          <div className="border rounded-lg overflow-auto max-h-64">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  {headers.slice(0, 5).map(h => (
+                    <TableHead key={h} className="whitespace-nowrap">{h}</TableHead>
+                  ))}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {preview.map((row, i) => (
+                  <TableRow key={i}>
                     {headers.slice(0, 5).map(h => (
-                      <TableHead key={h} className="whitespace-nowrap">{h}</TableHead>
+                      <TableCell key={h} className="text-sm truncate max-w-[200px]">
+                        {row[h] || "-"}
+                      </TableCell>
                     ))}
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {preview.map((row, i) => (
-                    <TableRow key={i}>
-                      {headers.slice(0, 5).map(h => (
-                        <TableCell key={h} className="text-sm truncate max-w-[200px]">
-                          {row[h] || "-"}
-                        </TableCell>
-                      ))}
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+          {validationErrors.length === 0 && (
+            <div className="flex items-center gap-2 text-sm text-emerald-600">
+              <Check className="h-4 w-4" />
+              CSV válido, pronto para importar
             </div>
-            {validationErrors.length === 0 && (
-              <div className="flex items-center gap-2 text-sm text-emerald-600">
-                <Check className="h-4 w-4" />
-                CSV válido, pronto para importar
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Expected Columns */}
-        <div className="text-sm text-muted-foreground">
-          <p className="font-medium mb-1">Colunas esperadas para {MATRIX_CONFIGS[matrixType].label}:</p>
-          <div className="flex flex-wrap gap-1">
-            {MATRIX_CONFIGS[matrixType].columns.map((col, i) => (
-              <Badge key={col} variant={i < 2 ? "default" : "secondary"} className="text-xs">
-                {col}{i < 2 && " *"}
-              </Badge>
-            ))}
-          </div>
+          )}
         </div>
-      </CardContent>
-    </Card>
+      )}
+
+      {/* Expected Columns */}
+      <div className="text-sm text-muted-foreground">
+        <p className="font-medium mb-1">Colunas esperadas para {MATRIX_CONFIGS[matrixType].label}:</p>
+        <div className="flex flex-wrap gap-1">
+          {MATRIX_CONFIGS[matrixType].columns.map((col, i) => (
+            <Badge key={col} variant={i < 2 ? "default" : "secondary"} className="text-xs">
+              {col}{i < 2 && " *"}
+            </Badge>
+          ))}
+        </div>
+      </div>
+    </div>
   );
 }
