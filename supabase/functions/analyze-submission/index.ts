@@ -228,7 +228,44 @@ serve(async (req) => {
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const lovableApiKey = Deno.env.get("LOVABLE_API_KEY");
+
+    // === AUTHORIZATION CHECK ===
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: "Authorization header required" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Verify user has access via RLS
+    const userClient = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } }
+    });
+
+    const { data: { user }, error: userError } = await userClient.auth.getUser();
+    if (userError || !user) {
+      return new Response(
+        JSON.stringify({ error: "Invalid or expired token" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Check if user is admin (only admins can trigger AI analysis)
+    const { data: userRole } = await userClient.from("user_roles").select("role").eq("user_id", user.id).single();
+    const isAdmin = userRole?.role === "admin_hc" || userRole?.role === "super_admin";
+    
+    if (!isAdmin) {
+      return new Response(
+        JSON.stringify({ error: "Admin access required to trigger AI analysis" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    console.log("User authorized:", user.id, "Role:", userRole?.role);
+    // === END AUTHORIZATION CHECK ===
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
@@ -266,14 +303,6 @@ serve(async (req) => {
       modelToUse = customPrompt.model || modelToUse;
     } else {
       console.log("Using default MASTER_PROMPT for form type:", formType);
-    }
-
-    if (fetchError || !submission) {
-      console.error("Error fetching submission:", fetchError);
-      return new Response(
-        JSON.stringify({ error: "Submission not found" }),
-        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
     }
 
     console.log("Analyzing submission:", submissionId);
