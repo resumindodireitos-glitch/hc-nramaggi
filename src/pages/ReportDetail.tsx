@@ -100,9 +100,16 @@ export default function ReportDetail() {
     }
   };
 
-  const getDimensionScores = (scores: Json) => {
+  const getDimensionScores = (scores: Json): Array<[string, number, string | null]> => {
     if (typeof scores === "object" && scores !== null && !Array.isArray(scores)) {
-      return Object.entries(scores as Record<string, number>);
+      return Object.entries(scores as Record<string, unknown>).map(([key, value]) => {
+        // Handle both formats: plain number or object {score, risk_color}
+        if (typeof value === "object" && value !== null && "score" in value) {
+          const obj = value as { score: number; risk_color?: string };
+          return [key, obj.score, obj.risk_color || null];
+        }
+        return [key, Number(value) || 0, null];
+      });
     }
     return [];
   };
@@ -201,7 +208,7 @@ export default function ReportDetail() {
                   Pontuação por Dimensão
                 </h3>
                 <div className="grid gap-3 md:grid-cols-2">
-                  {getDimensionScores(report.dimensions_score).map(([dimension, score]) => (
+                  {getDimensionScores(report.dimensions_score).map(([dimension, score, riskColor]) => (
                     <div
                       key={dimension}
                       className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
@@ -210,9 +217,9 @@ export default function ReportDetail() {
                       <Badge
                         variant="outline"
                         className={
-                          Number(score) >= 80
+                          riskColor === "verde" || score >= 80
                             ? "bg-success/10 text-success border-success/20"
-                            : Number(score) >= 50
+                            : riskColor === "amarelo" || score >= 50
                             ? "bg-warning/10 text-warning border-warning/20"
                             : "bg-destructive/10 text-destructive border-destructive/20"
                         }
