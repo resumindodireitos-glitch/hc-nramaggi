@@ -168,6 +168,13 @@ export type Database = {
             referencedRelation: "submissions"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "ai_usage_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "submissions_anonymized"
+            referencedColumns: ["id"]
+          },
         ]
       }
       ai_usage_limits: {
@@ -665,6 +672,13 @@ export type Database = {
             referencedRelation: "submissions"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "reports_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: true
+            referencedRelation: "submissions_anonymized"
+            referencedColumns: ["id"]
+          },
         ]
       }
       submission_tokens: {
@@ -709,6 +723,7 @@ export type Database = {
         Row: {
           answers: Json
           created_at: string | null
+          data_retention_until: string | null
           employee_id: string | null
           form_id: string
           id: string
@@ -720,6 +735,7 @@ export type Database = {
         Insert: {
           answers?: Json
           created_at?: string | null
+          data_retention_until?: string | null
           employee_id?: string | null
           form_id: string
           id?: string
@@ -731,6 +747,7 @@ export type Database = {
         Update: {
           answers?: Json
           created_at?: string | null
+          data_retention_until?: string | null
           employee_id?: string | null
           form_id?: string
           id?: string
@@ -839,9 +856,47 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      submissions_anonymized: {
+        Row: {
+          answers: Json | null
+          created_at: string | null
+          form_id: string | null
+          id: string | null
+          respondent_data: Json | null
+          respondent_hash: string | null
+          status: Database["public"]["Enums"]["submission_status"] | null
+        }
+        Insert: {
+          answers?: Json | null
+          created_at?: string | null
+          form_id?: string | null
+          id?: string | null
+          respondent_data?: never
+          respondent_hash?: string | null
+          status?: Database["public"]["Enums"]["submission_status"] | null
+        }
+        Update: {
+          answers?: Json | null
+          created_at?: string | null
+          form_id?: string | null
+          id?: string | null
+          respondent_data?: never
+          respondent_hash?: string | null
+          status?: Database["public"]["Enums"]["submission_status"] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "submissions_form_id_fkey"
+            columns: ["form_id"]
+            isOneToOne: false
+            referencedRelation: "forms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
+      anonymize_expired_submissions: { Args: never; Returns: number }
       generate_respondent_hash: {
         Args: { respondent_data: Json }
         Returns: string
@@ -849,6 +904,17 @@ export type Database = {
       generate_respondent_hash_secure: {
         Args: { respondent_data: Json }
         Returns: string
+      }
+      get_submission_full_data: {
+        Args: { submission_uuid: string }
+        Returns: {
+          answers: Json
+          created_at: string
+          form_id: string
+          id: string
+          respondent_data: Json
+          status: string
+        }[]
       }
       get_user_role: {
         Args: { user_id: string }
@@ -863,6 +929,7 @@ export type Database = {
       }
       is_admin: { Args: { user_id: string }; Returns: boolean }
       is_super_admin: { Args: { _user_id: string }; Returns: boolean }
+      mask_sensitive_data: { Args: { data: Json }; Returns: Json }
       search_similar_chunks: {
         Args: {
           agent_uuid: string
