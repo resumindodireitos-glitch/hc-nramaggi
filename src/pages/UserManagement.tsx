@@ -19,6 +19,16 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Table,
   TableBody,
   TableCell,
@@ -38,7 +48,7 @@ import { toast } from "sonner";
 import { 
   Loader2, Plus, Pencil, Users, Search, Shield, User, UserPlus, 
   Mail, Lock, MoreHorizontal, KeyRound, Crown, Eye, EyeOff,
-  UserCheck, UserX, RefreshCw
+  UserCheck, UserX, RefreshCw, Trash2, Ban, CheckCircle, AlertTriangle
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -89,8 +99,10 @@ export default function UserManagement() {
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
   const [showRolesDialog, setShowRolesDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   
   const [editingUser, setEditingUser] = useState<UserWithRoles | null>(null);
+  const [userToDelete, setUserToDelete] = useState<UserWithRoles | null>(null);
   const [saving, setSaving] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -408,6 +420,86 @@ export default function UserManagement() {
     );
   };
 
+  const openDeleteDialog = (user: UserWithRoles) => {
+    // Don't allow deleting super admins or self
+    if (user.appRoles.includes("super_admin")) {
+      toast.error("Não é possível excluir um Super Admin");
+      return;
+    }
+    if (user.id === currentUser?.id) {
+      toast.error("Não é possível excluir sua própria conta");
+      return;
+    }
+    setUserToDelete(user);
+    setShowDeleteDialog(true);
+  };
+
+  const handleDeleteUser = async () => {
+    if (!userToDelete || !isSuperAdmin) return;
+
+    setSaving(true);
+    try {
+      // Delete user roles first
+      await supabase
+        .from("user_roles")
+        .delete()
+        .eq("user_id", userToDelete.id);
+
+      // Delete profile (auth user deletion requires admin API)
+      const { error } = await supabase
+        .from("profiles")
+        .delete()
+        .eq("id", userToDelete.id);
+
+      if (error) throw error;
+
+      toast.success("Usuário excluído com sucesso!", {
+        description: `${userToDelete.full_name} foi removido do sistema`,
+      });
+      setShowDeleteDialog(false);
+      setUserToDelete(null);
+      fetchUsers();
+    } catch (error: any) {
+      console.error("Error deleting user:", error);
+      toast.error("Erro ao excluir usuário", { description: error.message });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleToggleUserStatus = async (user: UserWithRoles, activate: boolean) => {
+    if (!isSuperAdmin) return;
+    
+    setSaving(true);
+    try {
+      // Toggle the admin_hc role to effectively enable/disable the user
+      if (activate) {
+        // Add role back
+        const roleToAdd = user.role === "admin_hc" ? "admin_hc" : "employee_amaggi";
+        await supabase
+          .from("user_roles")
+          .insert({ user_id: user.id, role: roleToAdd });
+      } else {
+        // Remove all roles (keeping super_admin if exists)
+        await supabase
+          .from("user_roles")
+          .delete()
+          .eq("user_id", user.id)
+          .neq("role", "super_admin");
+      }
+
+      toast.success(activate ? "Usuário ativado!" : "Usuário desativado!", {
+        description: `${user.full_name} foi ${activate ? "ativado" : "desativado"} com sucesso`,
+      });
+      fetchUsers();
+    } catch (error: any) {
+      console.error("Error toggling user status:", error);
+      toast.error("Erro ao alterar status", { description: error.message });
+    } finally {
+      setSaving(false);
+    }
+  };
+
   // Filter users
   const filteredUsers = users.filter((user) => {
     const matchesSearch = 
@@ -647,6 +739,35 @@ export default function UserManagement() {
                                     <Shield className="h-4 w-4 mr-2" />
                                     Gerenciar Permissões
                                   </DropdownMenuItem>
+                                  {user.appRoles.length > 0 && !user.appRoles.includes("super_admin") ? (
+                                    <DropdownMenuItem 
+                                      onClick={() => handleToggleUserStatus(user, false)}
+                                      className="text-amber-600"
+                                    >
+                                      <Ban className="h-4 w-4 mr-2" />
+                                      Desativar Conta
+                                    </DropdownMenuItem>
+                                  ) : user.appRoles.length === 0 ? (
+                                    <DropdownMenuItem 
+                                      onClick={() => handleToggleUserStatus(user, true)}
+                                      className="text-green-600"
+                                    >
+                                      <CheckCircle className="h-4 w-4 mr-2" />
+                                      Ativar Conta
+                                    </DropdownMenuItem>
+                                  ) : null}
+                                  {!user.appRoles.includes("super_admin") && user.id !== currentUser?.id && (
+                                    <>
+                                      <DropdownMenuSeparator />
+                                      <DropdownMenuItem 
+                                        onClick={() => openDeleteDialog(user)}
+                                        className="text-destructive focus:text-destructive"
+                                      >
+                                        <Trash2 className="h-4 w-4 mr-2" />
+                                        Excluir Usuário
+                                      </DropdownMenuItem>
+                                    </>
+                                  )}
                                 </>
                               )}
                             </DropdownMenuContent>
@@ -1001,6 +1122,36 @@ export default function UserManagement() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Delete Confirmation Dialog */}
+        <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle className="flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-destructive" />
+                Confirmar Exclusão
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                Tem certeza que deseja excluir o usuário <strong>{userToDelete?.full_name}</strong>?
+                <br />
+                <span className="text-destructive font-medium">Esta ação não pode ser desfeita.</span>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setUserToDelete(null)}>
+                Cancelar
+              </AlertDialogCancel>
+              <AlertDialogAction 
+                onClick={handleDeleteUser}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                disabled={saving}
+              >
+                {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                Excluir
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </AppLayout>
   );
