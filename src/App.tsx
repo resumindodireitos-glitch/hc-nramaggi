@@ -36,6 +36,7 @@ import RiskMatrixDashboard from "./pages/RiskMatrixDashboard";
 import AggregatedReports from "./pages/AggregatedReports";
 import CronJobsDashboard from "./pages/CronJobsDashboard";
 import WebhookConfiguration from "./pages/WebhookConfiguration";
+import FormCalculationConfig from "./pages/FormCalculationConfig";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -270,6 +271,14 @@ const App = () => (
               element={
                 <ProtectedRoute requireAdmin>
                   <WebhookConfiguration />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/forms/:id/calculation"
+              element={
+                <ProtectedRoute requireAdmin>
+                  <FormCalculationConfig />
                 </ProtectedRoute>
               }
             />

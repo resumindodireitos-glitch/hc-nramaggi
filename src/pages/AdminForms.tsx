@@ -53,7 +53,8 @@ import {
   ToggleRight,
   QrCode,
   Download,
-  Link2
+  Link2,
+  Calculator
 } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -307,6 +308,10 @@ export default function AdminForms() {
                               <DropdownMenuItem onClick={() => navigate(`/admin/forms/${form.id}`)}>
                                 <Pencil className="h-4 w-4 mr-2" />
                                 Editar
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => navigate(`/admin/forms/${form.id}/calculation`)}>
+                                <Calculator className="h-4 w-4 mr-2" />
+                                Regras de Cálculo
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => copyLink(form.id)}>
                                 <ExternalLink className="h-4 w-4 mr-2" />

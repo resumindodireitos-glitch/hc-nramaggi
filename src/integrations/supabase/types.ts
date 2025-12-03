@@ -443,6 +443,7 @@ export type Database = {
       }
       farms: {
         Row: {
+          cnae: string | null
           code: string | null
           created_at: string | null
           description: string | null
@@ -451,9 +452,11 @@ export type Database = {
           location: string | null
           manager_name: string | null
           name: string
+          risk_degree: number | null
           updated_at: string | null
         }
         Insert: {
+          cnae?: string | null
           code?: string | null
           created_at?: string | null
           description?: string | null
@@ -462,9 +465,11 @@ export type Database = {
           location?: string | null
           manager_name?: string | null
           name: string
+          risk_degree?: number | null
           updated_at?: string | null
         }
         Update: {
+          cnae?: string | null
           code?: string | null
           created_at?: string | null
           description?: string | null
@@ -473,6 +478,7 @@ export type Database = {
           location?: string | null
           manager_name?: string | null
           name?: string
+          risk_degree?: number | null
           updated_at?: string | null
         }
         Relationships: []
@@ -583,9 +589,11 @@ export type Database = {
       job_roles: {
         Row: {
           cbo: string | null
+          cbo_description: string | null
           created_at: string | null
           department_id: string | null
           description: string | null
+          environment_desc: string | null
           id: string
           name: string
           risk_category: string | null
@@ -593,9 +601,11 @@ export type Database = {
         }
         Insert: {
           cbo?: string | null
+          cbo_description?: string | null
           created_at?: string | null
           department_id?: string | null
           description?: string | null
+          environment_desc?: string | null
           id?: string
           name: string
           risk_category?: string | null
@@ -603,9 +613,11 @@ export type Database = {
         }
         Update: {
           cbo?: string | null
+          cbo_description?: string | null
           created_at?: string | null
           department_id?: string | null
           description?: string | null
+          environment_desc?: string | null
           id?: string
           name?: string
           risk_category?: string | null
@@ -1229,6 +1241,51 @@ export type Database = {
           title?: string
           type?: string | null
           version?: string | null
+        }
+        Relationships: []
+      }
+      tanguro_risk_matrix: {
+        Row: {
+          created_at: string | null
+          detection_d: number | null
+          dimension: string | null
+          id: string
+          is_active: boolean | null
+          nr_referencia: string[] | null
+          probability_p: number | null
+          risk_factor: string
+          severity_g: number | null
+          source: string | null
+          suggested_action: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          detection_d?: number | null
+          dimension?: string | null
+          id?: string
+          is_active?: boolean | null
+          nr_referencia?: string[] | null
+          probability_p?: number | null
+          risk_factor: string
+          severity_g?: number | null
+          source?: string | null
+          suggested_action?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          detection_d?: number | null
+          dimension?: string | null
+          id?: string
+          is_active?: boolean | null
+          nr_referencia?: string[] | null
+          probability_p?: number | null
+          risk_factor?: string
+          severity_g?: number | null
+          source?: string | null
+          suggested_action?: string | null
+          updated_at?: string | null
         }
         Relationships: []
       }
