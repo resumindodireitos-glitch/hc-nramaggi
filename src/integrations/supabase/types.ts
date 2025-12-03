@@ -667,6 +667,44 @@ export type Database = {
           },
         ]
       }
+      submission_tokens: {
+        Row: {
+          created_at: string | null
+          expires_at: string
+          form_id: string
+          id: string
+          ip_hash: string | null
+          token: string
+          used: boolean | null
+        }
+        Insert: {
+          created_at?: string | null
+          expires_at?: string
+          form_id: string
+          id?: string
+          ip_hash?: string | null
+          token: string
+          used?: boolean | null
+        }
+        Update: {
+          created_at?: string | null
+          expires_at?: string
+          form_id?: string
+          id?: string
+          ip_hash?: string | null
+          token?: string
+          used?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "submission_tokens_form_id_fkey"
+            columns: ["form_id"]
+            isOneToOne: false
+            referencedRelation: "forms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       submissions: {
         Row: {
           answers: Json
@@ -674,7 +712,9 @@ export type Database = {
           employee_id: string | null
           form_id: string
           id: string
+          ip_hash: string | null
           respondent_data: Json
+          respondent_hash: string | null
           status: Database["public"]["Enums"]["submission_status"] | null
         }
         Insert: {
@@ -683,7 +723,9 @@ export type Database = {
           employee_id?: string | null
           form_id: string
           id?: string
+          ip_hash?: string | null
           respondent_data?: Json
+          respondent_hash?: string | null
           status?: Database["public"]["Enums"]["submission_status"] | null
         }
         Update: {
@@ -692,7 +734,9 @@ export type Database = {
           employee_id?: string | null
           form_id?: string
           id?: string
+          ip_hash?: string | null
           respondent_data?: Json
+          respondent_hash?: string | null
           status?: Database["public"]["Enums"]["submission_status"] | null
         }
         Relationships: [
@@ -798,6 +842,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      generate_respondent_hash: {
+        Args: { respondent_data: Json }
+        Returns: string
+      }
       get_user_role: {
         Args: { user_id: string }
         Returns: Database["public"]["Enums"]["user_role"]

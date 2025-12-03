@@ -1,6 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useParams } from "react-router-dom";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,24 +7,25 @@ import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Slider } from "@/components/ui/slider";
-import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { motion, AnimatePresence } from "framer-motion";
 import { 
   Loader2, 
   Send, 
-  ClipboardList, 
   CheckCircle2, 
-  ArrowLeft, 
   ArrowRight,
+  ArrowUp,
   Shield,
   Lock,
   Building2,
   User,
   Briefcase,
   Calendar,
-  Clock
+  Clock,
+  ChevronDown,
+  Sparkles
 } from "lucide-react";
 import type { Database, Json } from "@/integrations/supabase/types";
 import logoHC from "@/assets/logo-hc-new.png";
@@ -76,6 +76,22 @@ const TEMPO_EMPRESA = [
   "Acima de 15 anos"
 ];
 
+// Animation variants
+const slideVariants = {
+  enter: (direction: number) => ({
+    y: direction > 0 ? 50 : -50,
+    opacity: 0
+  }),
+  center: {
+    y: 0,
+    opacity: 1
+  },
+  exit: (direction: number) => ({
+    y: direction < 0 ? 50 : -50,
+    opacity: 0
+  })
+};
+
 export default function PublicFormSubmit() {
   const { id } = useParams<{ id: string }>();
   const [form, setForm] = useState<Form | null>(null);
@@ -85,6 +101,7 @@ export default function PublicFormSubmit() {
   const [submissionId, setSubmissionId] = useState<string | null>(null);
   const [answers, setAnswers] = useState<Record<string, Json>>({});
   const [currentStep, setCurrentStep] = useState(0);
+  const [direction, setDirection] = useState(0);
   
   const [departments, setDepartments] = useState<Department[]>([]);
   const [jobRoles, setJobRoles] = useState<JobRole[]>([]);
@@ -105,6 +122,18 @@ export default function PublicFormSubmit() {
       fetchSelectData();
     }
   }, [id]);
+
+  // Keyboard navigation
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Enter' && !e.shiftKey && !submitting) {
+        e.preventDefault();
+        handleNext();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [currentStep, answers, respondentData, submitting]);
 
   const fetchForm = async () => {
     try {
@@ -142,7 +171,6 @@ export default function PublicFormSubmit() {
   const totalSteps = schema.length + 1;
   const progress = ((currentStep + 1) / totalSteps) * 100;
 
-  // Filter job roles by selected department
   const filteredJobRoles = respondentData.setor 
     ? jobRoles.filter(jr => {
         const dept = departments.find(d => d.name === respondentData.setor);
@@ -170,41 +198,34 @@ export default function PublicFormSubmit() {
     return true;
   };
 
-  const handleNext = () => {
+  const handleNext = useCallback(() => {
     if (currentStep === 0) {
       if (!validateRespondentData()) return;
     } else {
       const currentQuestion = schema[currentStep - 1];
-      if (currentQuestion?.required && !answers[currentQuestion.id]) {
+      if (currentQuestion?.type !== 'info' && currentQuestion?.required && !answers[currentQuestion.id]) {
         toast.error("Esta pergunta é obrigatória");
         return;
       }
     }
     
     if (currentStep < totalSteps - 1) {
-      setCurrentStep(currentStep + 1);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      setDirection(1);
+      setCurrentStep(prev => prev + 1);
+    } else {
+      handleSubmit();
     }
-  };
+  }, [currentStep, totalSteps, answers, respondentData, schema]);
 
   const handlePrev = () => {
     if (currentStep > 0) {
-      setCurrentStep(currentStep - 1);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      setDirection(-1);
+      setCurrentStep(prev => prev - 1);
     }
   };
 
   const handleSubmit = async () => {
     if (!form) return;
-
-    if (currentStep > 0) {
-      const currentQuestion = schema[currentStep - 1];
-      if (currentQuestion?.required && !answers[currentQuestion.id]) {
-        toast.error("Esta pergunta é obrigatória");
-        return;
-      }
-    }
-
     setSubmitting(true);
 
     try {
@@ -242,13 +263,20 @@ export default function PublicFormSubmit() {
   // Loading state
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-16 h-16 rounded-2xl bg-primary/20 flex items-center justify-center animate-pulse">
-            <ClipboardList className="h-8 w-8 text-primary" />
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-emerald-950 flex items-center justify-center">
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="flex flex-col items-center gap-4"
+        >
+          <div className="relative">
+            <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-2xl shadow-emerald-500/30">
+              <Sparkles className="h-10 w-10 text-white animate-pulse" />
+            </div>
+            <div className="absolute -inset-1 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-3xl blur-xl opacity-40 animate-pulse" />
           </div>
-          <p className="text-slate-400 animate-pulse">Carregando formulário...</p>
-        </div>
+          <p className="text-slate-400 text-lg">Carregando...</p>
+        </motion.div>
       </div>
     );
   }
@@ -256,18 +284,20 @@ export default function PublicFormSubmit() {
   // Form not found
   if (!form) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
-        <Card className="max-w-md w-full text-center border-0 bg-slate-800/50 backdrop-blur">
-          <CardContent className="pt-8 pb-8">
-            <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mx-auto mb-4">
-              <ClipboardList className="h-8 w-8 text-destructive" />
-            </div>
-            <h2 className="text-xl font-bold mb-2 text-white">Formulário não encontrado</h2>
-            <p className="text-slate-400">
-              Este formulário pode ter sido desativado ou o link está incorreto.
-            </p>
-          </CardContent>
-        </Card>
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-emerald-950 flex items-center justify-center p-4">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-center max-w-md"
+        >
+          <div className="w-20 h-20 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-6">
+            <Lock className="h-10 w-10 text-red-400" />
+          </div>
+          <h2 className="text-2xl font-bold mb-3 text-white">Formulário não encontrado</h2>
+          <p className="text-slate-400">
+            Este formulário pode ter sido desativado ou o link está incorreto.
+          </p>
+        </motion.div>
       </div>
     );
   }
@@ -275,304 +305,450 @@ export default function PublicFormSubmit() {
   // Success state
   if (submitted) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
-        <Card className="max-w-md w-full text-center animate-scale-in border-0 bg-slate-800/50 backdrop-blur">
-          <CardContent className="pt-8 pb-8">
-            <div className="w-20 h-20 rounded-full bg-emerald-500/20 flex items-center justify-center mx-auto mb-6">
-              <CheckCircle2 className="h-10 w-10 text-emerald-400" />
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-emerald-950 flex items-center justify-center p-4">
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ type: "spring", duration: 0.6 }}
+          className="text-center max-w-md"
+        >
+          <motion.div 
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ delay: 0.2, type: "spring" }}
+            className="relative w-24 h-24 mx-auto mb-8"
+          >
+            <div className="absolute inset-0 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-full blur-xl opacity-50 animate-pulse" />
+            <div className="relative w-full h-full rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
+              <CheckCircle2 className="h-12 w-12 text-white" />
             </div>
-            <h2 className="text-2xl font-bold mb-2 text-white">Respostas Enviadas!</h2>
-            <p className="text-slate-400 mb-6">
-              Obrigado por participar. Suas respostas foram registradas com sucesso.
-            </p>
-            
-            {submissionId && (
-              <div className="bg-slate-700/50 rounded-xl p-4 mb-6">
-                <p className="text-xs text-slate-400 mb-1">Código da Submissão</p>
-                <p className="font-mono text-sm font-medium text-white">{submissionId.slice(0, 8).toUpperCase()}</p>
-              </div>
-            )}
+          </motion.div>
+          
+          <motion.h2 
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="text-3xl font-bold mb-4 text-white"
+          >
+            Obrigado!
+          </motion.h2>
+          
+          <motion.p 
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+            className="text-slate-400 text-lg mb-8"
+          >
+            Suas respostas foram registradas com sucesso.
+          </motion.p>
+          
+          {submissionId && (
+            <motion.div 
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.5 }}
+              className="bg-slate-800/50 backdrop-blur rounded-2xl p-6 mb-8 border border-slate-700/50"
+            >
+              <p className="text-xs text-slate-500 uppercase tracking-wider mb-2">Código da Submissão</p>
+              <p className="font-mono text-xl font-bold text-emerald-400">{submissionId.slice(0, 8).toUpperCase()}</p>
+            </motion.div>
+          )}
 
-            <div className="flex items-center justify-center gap-2 text-xs text-slate-400">
-              <Lock className="h-3 w-3" />
-              <span>Dados protegidos conforme LGPD</span>
-            </div>
-          </CardContent>
-        </Card>
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.6 }}
+            className="flex items-center justify-center gap-2 text-sm text-slate-500"
+          >
+            <Shield className="h-4 w-4" />
+            <span>Dados protegidos conforme LGPD</span>
+          </motion.div>
+        </motion.div>
       </div>
     );
   }
 
   const isLastStep = currentStep === totalSteps - 1;
+  const currentQuestion = currentStep > 0 ? schema[currentStep - 1] : null;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-      {/* Header */}
-      <header className="border-b border-slate-700/50 bg-slate-900/80 backdrop-blur-sm sticky top-0 z-50">
-        <div className="max-w-3xl mx-auto px-4 py-4 flex items-center justify-between">
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-emerald-950 flex flex-col">
+      {/* Minimal Header */}
+      <header className="fixed top-0 left-0 right-0 z-50">
+        <div className="px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img src={logoHC} alt="HC Consultoria" className="h-10 w-10 rounded-lg object-cover" />
-            <div>
-              <h1 className="font-bold text-white text-sm">HC Consultoria</h1>
-              <p className="text-[10px] text-slate-400">Ergonomia & Fisioterapia</p>
+            <img src={logoHC} alt="HC" className="h-10 w-10 rounded-xl object-cover shadow-lg" />
+            <div className="hidden sm:block">
+              <p className="font-semibold text-white text-sm">HC Consultoria</p>
+              <p className="text-[10px] text-slate-500">Ergonomia & Fisioterapia</p>
             </div>
           </div>
-          <div className="flex items-center gap-2 text-xs text-slate-400">
-            <Shield className="h-4 w-4 text-emerald-400" />
-            <span className="hidden sm:inline">Dados Protegidos</span>
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+            <Shield className="h-3.5 w-3.5 text-emerald-400" />
+            <span className="text-xs text-emerald-300 font-medium">Seguro</span>
           </div>
+        </div>
+        
+        {/* Progress Bar */}
+        <div className="h-1 bg-slate-800/50">
+          <motion.div 
+            className="h-full bg-gradient-to-r from-emerald-500 to-teal-400"
+            initial={{ width: 0 }}
+            animate={{ width: `${progress}%` }}
+            transition={{ duration: 0.3, ease: "easeOut" }}
+          />
         </div>
       </header>
 
-      <main className="max-w-3xl mx-auto px-4 py-8 space-y-6">
-        {/* Form Title */}
-        <div className="text-center space-y-3">
-          <h1 className="text-2xl sm:text-3xl font-bold text-white">{form.title}</h1>
-          {form.description && (
-            <p className="text-slate-400 max-w-xl mx-auto">{form.description}</p>
-          )}
-        </div>
-
-        {/* Progress */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-slate-400">
-              Etapa {currentStep + 1} de {totalSteps}
-            </span>
-            <span className="font-medium text-emerald-400">{Math.round(progress)}%</span>
-          </div>
-          <div className="h-2 bg-slate-700/50 rounded-full overflow-hidden">
-            <div 
-              className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 transition-all duration-500 ease-out"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
-        </div>
-
-        {/* Content */}
-        {currentStep === 0 ? (
-          <Card className="border-0 bg-slate-800/50 backdrop-blur">
-            <CardHeader className="pb-4">
-              <CardTitle className="flex items-center gap-2 text-lg text-white">
-                <User className="h-5 w-5 text-emerald-400" />
-                Dados do Respondente
-              </CardTitle>
-              <CardDescription className="text-slate-400">
-                Preencha seus dados para caracterização no relatório. Todas as informações são tratadas de forma sigilosa.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-5">
-              <div className="grid gap-5 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label className="flex items-center gap-2 text-slate-300">
-                    <User className="h-4 w-4 text-slate-500" />
-                    Nome Completo *
-                  </Label>
-                  <Input
-                    value={respondentData.nome}
-                    onChange={(e) => updateRespondent("nome", e.target.value)}
-                    placeholder="Seu nome completo"
-                    className="bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-500 focus:border-emerald-500"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="flex items-center gap-2 text-slate-300">
-                    <Building2 className="h-4 w-4 text-slate-500" />
-                    Empresa
-                  </Label>
-                  <Input
-                    value="Amaggi"
-                    disabled
-                    className="bg-slate-700/30 border-slate-600 text-slate-300 font-medium"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="flex items-center gap-2 text-slate-300">
-                    <Building2 className="h-4 w-4 text-slate-500" />
-                    Setor/Departamento *
-                  </Label>
-                  <Select 
-                    value={respondentData.setor} 
-                    onValueChange={(v) => {
-                      updateRespondent("setor", v);
-                      updateRespondent("cargo", "");
-                    }}
-                  >
-                    <SelectTrigger className="bg-slate-700/50 border-slate-600 text-white">
-                      <SelectValue placeholder="Selecione o setor..." />
-                    </SelectTrigger>
-                    <SelectContent className="bg-slate-800 border-slate-700">
-                      {departments.map((dept) => (
-                        <SelectItem key={dept.id} value={dept.name} className="text-white hover:bg-slate-700">
-                          {dept.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="flex items-center gap-2 text-slate-300">
-                    <Briefcase className="h-4 w-4 text-slate-500" />
-                    Cargo/Função *
-                  </Label>
-                  <Select value={respondentData.cargo} onValueChange={(v) => updateRespondent("cargo", v)}>
-                    <SelectTrigger className="bg-slate-700/50 border-slate-600 text-white">
-                      <SelectValue placeholder="Selecione o cargo..." />
-                    </SelectTrigger>
-                    <SelectContent className="bg-slate-800 border-slate-700">
-                      {filteredJobRoles.map((role) => (
-                        <SelectItem key={role.id} value={role.name} className="text-white hover:bg-slate-700">
-                          {role.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="flex items-center gap-2 text-slate-300">
-                    <User className="h-4 w-4 text-slate-500" />
-                    Gênero
-                  </Label>
-                  <Select value={respondentData.genero} onValueChange={(v) => updateRespondent("genero", v)}>
-                    <SelectTrigger className="bg-slate-700/50 border-slate-600 text-white">
-                      <SelectValue placeholder="Selecione..." />
-                    </SelectTrigger>
-                    <SelectContent className="bg-slate-800 border-slate-700">
-                      {GENEROS.map((g) => (
-                        <SelectItem key={g} value={g} className="text-white hover:bg-slate-700">{g}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="flex items-center gap-2 text-slate-300">
-                    <Clock className="h-4 w-4 text-slate-500" />
-                    Tempo na Empresa *
-                  </Label>
-                  <Select value={respondentData.tempo_empresa} onValueChange={(v) => updateRespondent("tempo_empresa", v)}>
-                    <SelectTrigger className="bg-slate-700/50 border-slate-600 text-white">
-                      <SelectValue placeholder="Selecione..." />
-                    </SelectTrigger>
-                    <SelectContent className="bg-slate-800 border-slate-700">
-                      {TEMPO_EMPRESA.map((t) => (
-                        <SelectItem key={t} value={t} className="text-white hover:bg-slate-700">{t}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="space-y-2 max-w-xs">
-                <Label className="flex items-center gap-2 text-slate-300">
-                  <Calendar className="h-4 w-4 text-slate-500" />
-                  Data da Avaliação
-                </Label>
-                <Input
-                  type="date"
-                  value={respondentData.data_avaliacao}
-                  onChange={(e) => updateRespondent("data_avaliacao", e.target.value)}
-                  className="bg-slate-700/50 border-slate-600 text-white"
-                />
-              </div>
-            </CardContent>
-          </Card>
-        ) : (
-          schema[currentStep - 1] && (
-            <Card className="animate-fade-in border-0 bg-slate-800/50 backdrop-blur">
-              <CardHeader>
-                <div className="flex items-start gap-4">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500/20 text-emerald-400 font-bold text-lg shrink-0">
-                    {currentStep}
-                  </div>
-                  <div className="space-y-1">
-                    <CardTitle className="text-lg leading-tight text-white">
-                      {schema[currentStep - 1].label}
-                      {schema[currentStep - 1].required && <span className="text-red-400 ml-1">*</span>}
-                    </CardTitle>
-                    {schema[currentStep - 1].description && (
-                      <CardDescription className="text-slate-400">{schema[currentStep - 1].description}</CardDescription>
-                    )}
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="pl-20">
-                {renderQuestionInput(schema[currentStep - 1], answers, updateAnswer)}
-              </CardContent>
-            </Card>
-          )
-        )}
-
-        {/* Navigation */}
-        <div className="flex items-center justify-between pt-4">
-          <Button
-            variant="outline"
-            onClick={handlePrev}
-            disabled={currentStep === 0}
-            className="border-slate-600 text-slate-300 hover:bg-slate-700 hover:text-white"
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Anterior
-          </Button>
-
-          {isLastStep ? (
-            <Button
-              onClick={handleSubmit}
-              disabled={submitting}
-              className="bg-emerald-600 hover:bg-emerald-500 text-white"
+      {/* Main Content */}
+      <main className="flex-1 flex items-center justify-center px-4 py-24 overflow-hidden">
+        <div className="w-full max-w-2xl">
+          <AnimatePresence mode="wait" custom={direction}>
+            <motion.div
+              key={currentStep}
+              custom={direction}
+              variants={slideVariants}
+              initial="enter"
+              animate="center"
+              exit="exit"
+              transition={{ duration: 0.3, ease: "easeInOut" }}
+              className="space-y-8"
             >
-              {submitting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Enviando...
-                </>
-              ) : (
-                <>
-                  <Send className="mr-2 h-4 w-4" />
-                  Enviar Respostas
-                </>
-              )}
-            </Button>
-          ) : (
-            <Button onClick={handleNext} className="bg-emerald-600 hover:bg-emerald-500 text-white">
-              Próximo
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
-          )}
+              {currentStep === 0 ? (
+                <RespondentStep 
+                  data={respondentData}
+                  departments={departments}
+                  jobRoles={filteredJobRoles}
+                  updateRespondent={updateRespondent}
+                  formTitle={form.title}
+                  formDescription={form.description}
+                />
+              ) : currentQuestion ? (
+                <QuestionStep
+                  question={currentQuestion}
+                  questionNumber={currentStep}
+                  totalQuestions={schema.length}
+                  value={answers[currentQuestion.id]}
+                  onChange={(value) => updateAnswer(currentQuestion.id, value)}
+                />
+              ) : null}
+            </motion.div>
+          </AnimatePresence>
+        </div>
+      </main>
+
+      {/* Navigation Footer */}
+      <footer className="fixed bottom-0 left-0 right-0 z-50 pb-6 px-6">
+        <div className="max-w-2xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            {currentStep > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handlePrev}
+                className="text-slate-400 hover:text-white hover:bg-slate-800"
+              >
+                <ArrowUp className="h-4 w-4 mr-1" />
+                Voltar
+              </Button>
+            )}
+          </div>
+
+          <div className="text-sm text-slate-500">
+            {currentStep + 1} / {totalSteps}
+          </div>
+
+          <Button
+            onClick={handleNext}
+            disabled={submitting}
+            className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl px-6 shadow-lg shadow-emerald-500/20"
+          >
+            {submitting ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : isLastStep ? (
+              <>
+                Enviar
+                <Send className="ml-2 h-4 w-4" />
+              </>
+            ) : (
+              <>
+                OK
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </>
+            )}
+          </Button>
         </div>
 
-        {/* Footer */}
-        <footer className="text-center pt-8 pb-4">
-          <div className="flex items-center justify-center gap-2 text-xs text-slate-500">
-            <Lock className="h-3 w-3" />
-            <span>Dados confidenciais protegidos conforme LGPD</span>
-          </div>
-        </footer>
-      </main>
+        <div className="mt-4 text-center">
+          <p className="text-xs text-slate-600">
+            Pressione <kbd className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 font-mono text-[10px]">Enter ↵</kbd> para continuar
+          </p>
+        </div>
+      </footer>
     </div>
   );
 }
 
-// Question input renderer
-function renderQuestionInput(
-  question: FormQuestion,
-  answers: Record<string, Json>,
-  updateAnswer: (id: string, value: Json) => void
-) {
-  const value = answers[question.id];
+// Respondent Data Step Component
+function RespondentStep({
+  data,
+  departments,
+  jobRoles,
+  updateRespondent,
+  formTitle,
+  formDescription
+}: {
+  data: RespondentData;
+  departments: Department[];
+  jobRoles: JobRole[];
+  updateRespondent: (field: keyof RespondentData, value: string) => void;
+  formTitle: string;
+  formDescription: string | null;
+}) {
+  return (
+    <div className="space-y-8">
+      <div className="text-center space-y-4">
+        <motion.h1 
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-3xl sm:text-4xl font-bold text-white"
+        >
+          {formTitle}
+        </motion.h1>
+        {formDescription && (
+          <motion.p 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.1 }}
+            className="text-slate-400 text-lg max-w-lg mx-auto"
+          >
+            {formDescription}
+          </motion.p>
+        )}
+      </div>
 
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+        className="bg-slate-800/30 backdrop-blur-xl rounded-3xl p-8 border border-slate-700/50 space-y-6"
+      >
+        <div className="flex items-center gap-3 pb-4 border-b border-slate-700/50">
+          <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center">
+            <User className="h-5 w-5 text-emerald-400" />
+          </div>
+          <div>
+            <h2 className="font-semibold text-white">Seus Dados</h2>
+            <p className="text-xs text-slate-500">Informações para caracterização</p>
+          </div>
+        </div>
+
+        <div className="grid gap-5 sm:grid-cols-2">
+          <TypeformInput
+            icon={<User className="h-4 w-4" />}
+            label="Nome Completo"
+            required
+            value={data.nome}
+            onChange={(v) => updateRespondent("nome", v)}
+            placeholder="Digite seu nome..."
+          />
+
+          <TypeformInput
+            icon={<Building2 className="h-4 w-4" />}
+            label="Empresa"
+            value="Amaggi"
+            disabled
+          />
+
+          <TypeformSelect
+            icon={<Building2 className="h-4 w-4" />}
+            label="Setor"
+            required
+            value={data.setor}
+            onChange={(v) => {
+              updateRespondent("setor", v);
+              updateRespondent("cargo", "");
+            }}
+            options={departments.map(d => d.name)}
+            placeholder="Selecione o setor..."
+          />
+
+          <TypeformSelect
+            icon={<Briefcase className="h-4 w-4" />}
+            label="Cargo"
+            required
+            value={data.cargo}
+            onChange={(v) => updateRespondent("cargo", v)}
+            options={jobRoles.map(r => r.name)}
+            placeholder="Selecione o cargo..."
+          />
+
+          <TypeformSelect
+            icon={<User className="h-4 w-4" />}
+            label="Gênero"
+            value={data.genero}
+            onChange={(v) => updateRespondent("genero", v)}
+            options={GENEROS}
+            placeholder="Selecione..."
+          />
+
+          <TypeformSelect
+            icon={<Clock className="h-4 w-4" />}
+            label="Tempo na Empresa"
+            required
+            value={data.tempo_empresa}
+            onChange={(v) => updateRespondent("tempo_empresa", v)}
+            options={TEMPO_EMPRESA}
+            placeholder="Selecione..."
+          />
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
+// Question Step Component
+function QuestionStep({
+  question,
+  questionNumber,
+  totalQuestions,
+  value,
+  onChange
+}: {
+  question: FormQuestion;
+  questionNumber: number;
+  totalQuestions: number;
+  value: Json;
+  onChange: (value: Json) => void;
+}) {
+  return (
+    <div className="space-y-8">
+      <div className="space-y-4">
+        <div className="flex items-center gap-3">
+          <span className="text-emerald-400 font-mono text-sm">
+            {questionNumber}/{totalQuestions}
+          </span>
+          {question.required && (
+            <span className="text-red-400 text-xs">Obrigatória</span>
+          )}
+        </div>
+        
+        <h2 className="text-2xl sm:text-3xl font-bold text-white leading-tight">
+          {question.label}
+        </h2>
+        
+        {question.description && (
+          <p className="text-slate-400 text-lg">{question.description}</p>
+        )}
+      </div>
+
+      <div className="pt-4">
+        <QuestionInput question={question} value={value} onChange={onChange} />
+      </div>
+    </div>
+  );
+}
+
+// Typeform-style Input
+function TypeformInput({
+  icon,
+  label,
+  required,
+  value,
+  onChange,
+  placeholder,
+  disabled
+}: {
+  icon: React.ReactNode;
+  label: string;
+  required?: boolean;
+  value: string;
+  onChange?: (value: string) => void;
+  placeholder?: string;
+  disabled?: boolean;
+}) {
+  return (
+    <div className="space-y-2">
+      <Label className="flex items-center gap-2 text-slate-400 text-sm">
+        {icon}
+        {label}
+        {required && <span className="text-red-400">*</span>}
+      </Label>
+      <Input
+        value={value}
+        onChange={(e) => onChange?.(e.target.value)}
+        placeholder={placeholder}
+        disabled={disabled}
+        className="bg-slate-900/50 border-slate-700 text-white placeholder:text-slate-600 focus:border-emerald-500 focus:ring-emerald-500/20 rounded-xl h-12 disabled:opacity-60"
+      />
+    </div>
+  );
+}
+
+// Typeform-style Select
+function TypeformSelect({
+  icon,
+  label,
+  required,
+  value,
+  onChange,
+  options,
+  placeholder
+}: {
+  icon: React.ReactNode;
+  label: string;
+  required?: boolean;
+  value: string;
+  onChange: (value: string) => void;
+  options: string[];
+  placeholder?: string;
+}) {
+  return (
+    <div className="space-y-2">
+      <Label className="flex items-center gap-2 text-slate-400 text-sm">
+        {icon}
+        {label}
+        {required && <span className="text-red-400">*</span>}
+      </Label>
+      <Select value={value} onValueChange={onChange}>
+        <SelectTrigger className="bg-slate-900/50 border-slate-700 text-white rounded-xl h-12 focus:ring-emerald-500/20">
+          <SelectValue placeholder={placeholder} />
+        </SelectTrigger>
+        <SelectContent className="bg-slate-900 border-slate-700 rounded-xl">
+          {options.map((option) => (
+            <SelectItem 
+              key={option} 
+              value={option} 
+              className="text-white hover:bg-slate-800 focus:bg-slate-800 rounded-lg"
+            >
+              {option}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
+
+// Question Input Renderer
+function QuestionInput({
+  question,
+  value,
+  onChange
+}: {
+  question: FormQuestion;
+  value: Json;
+  onChange: (value: Json) => void;
+}) {
   switch (question.type) {
     case "text":
       return (
         <Input
           value={(value as string) || ""}
-          onChange={(e) => updateAnswer(question.id, e.target.value)}
-          placeholder="Sua resposta..."
-          className="bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-500 focus:border-emerald-500"
+          onChange={(e) => onChange(e.target.value)}
+          placeholder="Digite sua resposta..."
+          className="bg-slate-800/50 border-slate-700 text-white text-xl placeholder:text-slate-600 focus:border-emerald-500 rounded-xl h-14"
+          autoFocus
         />
       );
 
@@ -580,10 +756,11 @@ function renderQuestionInput(
       return (
         <Textarea
           value={(value as string) || ""}
-          onChange={(e) => updateAnswer(question.id, e.target.value)}
-          placeholder="Sua resposta..."
+          onChange={(e) => onChange(e.target.value)}
+          placeholder="Digite sua resposta..."
           rows={4}
-          className="bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-500 focus:border-emerald-500 resize-none"
+          className="bg-slate-800/50 border-slate-700 text-white text-lg placeholder:text-slate-600 focus:border-emerald-500 rounded-xl resize-none"
+          autoFocus
         />
       );
 
@@ -591,19 +768,32 @@ function renderQuestionInput(
       return (
         <RadioGroup
           value={(value as string) || ""}
-          onValueChange={(v) => updateAnswer(question.id, v)}
+          onValueChange={onChange}
           className="space-y-3"
         >
           {question.options?.map((option, index) => (
-            <div
+            <motion.div
               key={index}
-              className="flex items-center space-x-3 p-3 rounded-lg border border-slate-700 hover:border-emerald-500/50 transition-colors bg-slate-700/30"
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: index * 0.05 }}
             >
-              <RadioGroupItem value={option} id={`${question.id}-${index}`} className="border-slate-500 text-emerald-500" />
-              <Label htmlFor={`${question.id}-${index}`} className="cursor-pointer flex-1 text-slate-200">
-                {option}
-              </Label>
-            </div>
+              <label
+                className={`flex items-center gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                  value === option
+                    ? "border-emerald-500 bg-emerald-500/10"
+                    : "border-slate-700 hover:border-slate-600 bg-slate-800/30"
+                }`}
+              >
+                <div className={`w-6 h-6 rounded-lg flex items-center justify-center text-sm font-bold ${
+                  value === option ? "bg-emerald-500 text-white" : "bg-slate-700 text-slate-400"
+                }`}>
+                  {String.fromCharCode(65 + index)}
+                </div>
+                <RadioGroupItem value={option} className="sr-only" />
+                <span className="text-white text-lg">{option}</span>
+              </label>
+            </motion.div>
           ))}
         </RadioGroup>
       );
@@ -614,26 +804,33 @@ function renderQuestionInput(
           {question.options?.map((option, index) => {
             const checked = Array.isArray(value) && (value as string[]).includes(option);
             return (
-              <div
+              <motion.div
                 key={index}
-                className="flex items-center space-x-3 p-3 rounded-lg border border-slate-700 hover:border-emerald-500/50 transition-colors bg-slate-700/30"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: index * 0.05 }}
               >
-                <Checkbox
-                  id={`${question.id}-${index}`}
-                  checked={checked}
-                  onCheckedChange={(c) => {
-                    const current = Array.isArray(value) ? (value as string[]) : [];
-                    const newValue = c
-                      ? [...current, option]
-                      : current.filter((v) => v !== option);
-                    updateAnswer(question.id, newValue);
-                  }}
-                  className="border-slate-500 data-[state=checked]:bg-emerald-500"
-                />
-                <Label htmlFor={`${question.id}-${index}`} className="cursor-pointer flex-1 text-slate-200">
-                  {option}
-                </Label>
-              </div>
+                <label
+                  className={`flex items-center gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                    checked
+                      ? "border-emerald-500 bg-emerald-500/10"
+                      : "border-slate-700 hover:border-slate-600 bg-slate-800/30"
+                  }`}
+                >
+                  <Checkbox
+                    checked={checked}
+                    onCheckedChange={(c) => {
+                      const current = Array.isArray(value) ? (value as string[]) : [];
+                      const newValue = c
+                        ? [...current, option]
+                        : current.filter((v) => v !== option);
+                      onChange(newValue);
+                    }}
+                    className="h-6 w-6 rounded-lg border-2 border-slate-600 data-[state=checked]:bg-emerald-500 data-[state=checked]:border-emerald-500"
+                  />
+                  <span className="text-white text-lg">{option}</span>
+                </label>
+              </motion.div>
             );
           })}
         </div>
@@ -641,27 +838,33 @@ function renderQuestionInput(
 
     case "scale":
       return (
-        <div className="space-y-4">
-          <div className="flex justify-between text-sm text-slate-400">
+        <div className="space-y-6">
+          <div className="flex justify-between text-sm text-slate-500">
             <span>Discordo totalmente</span>
             <span>Concordo totalmente</span>
           </div>
           <RadioGroup
             value={(value as string) || ""}
-            onValueChange={(v) => updateAnswer(question.id, v)}
+            onValueChange={onChange}
             className="flex justify-between gap-2"
           >
             {[1, 2, 3, 4, 5].map((n) => (
-              <div key={n} className="flex flex-col items-center gap-2">
-                <RadioGroupItem
-                  value={String(n)}
-                  id={`${question.id}-${n}`}
-                  className="h-10 w-10 border-2 border-slate-600 data-[state=checked]:border-emerald-500 data-[state=checked]:bg-emerald-500/20"
-                />
-                <Label htmlFor={`${question.id}-${n}`} className="text-sm text-slate-400">
+              <motion.label
+                key={n}
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: n * 0.05 }}
+                className={`flex-1 flex flex-col items-center gap-2 p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                  value === String(n)
+                    ? "border-emerald-500 bg-emerald-500/10"
+                    : "border-slate-700 hover:border-slate-600 bg-slate-800/30"
+                }`}
+              >
+                <RadioGroupItem value={String(n)} className="sr-only" />
+                <span className={`text-2xl font-bold ${value === String(n) ? "text-emerald-400" : "text-slate-400"}`}>
                   {n}
-                </Label>
-              </div>
+                </span>
+              </motion.label>
             ))}
           </RadioGroup>
         </div>
@@ -669,21 +872,23 @@ function renderQuestionInput(
 
     case "slider":
       const min = question.min ?? 0;
-      const max = question.max ?? 10;
+      const max = question.max ?? 100;
       const sliderValue = typeof value === "number" ? value : min;
       return (
-        <div className="space-y-4 pt-2">
+        <div className="space-y-8 pt-4">
+          <div className="text-center">
+            <span className="text-6xl font-bold text-emerald-400">{sliderValue}</span>
+          </div>
           <Slider
             value={[sliderValue]}
-            onValueChange={([v]) => updateAnswer(question.id, v)}
+            onValueChange={([v]) => onChange(v)}
             min={min}
             max={max}
             step={1}
             className="py-4"
           />
-          <div className="flex justify-between text-sm text-slate-400">
+          <div className="flex justify-between text-sm text-slate-500">
             <span>{min}</span>
-            <span className="text-lg font-bold text-emerald-400">{sliderValue}</span>
             <span>{max}</span>
           </div>
         </div>
@@ -691,13 +896,17 @@ function renderQuestionInput(
 
     case "select":
       return (
-        <Select value={(value as string) || ""} onValueChange={(v) => updateAnswer(question.id, v)}>
-          <SelectTrigger className="bg-slate-700/50 border-slate-600 text-white">
+        <Select value={(value as string) || ""} onValueChange={onChange}>
+          <SelectTrigger className="bg-slate-800/50 border-slate-700 text-white rounded-xl h-14 text-lg">
             <SelectValue placeholder="Selecione uma opção..." />
           </SelectTrigger>
-          <SelectContent className="bg-slate-800 border-slate-700">
+          <SelectContent className="bg-slate-900 border-slate-700 rounded-xl">
             {question.options?.map((option, index) => (
-              <SelectItem key={index} value={option} className="text-white hover:bg-slate-700">
+              <SelectItem 
+                key={index} 
+                value={option} 
+                className="text-white hover:bg-slate-800 focus:bg-slate-800 rounded-lg text-lg py-3"
+              >
                 {option}
               </SelectItem>
             ))}
@@ -706,13 +915,16 @@ function renderQuestionInput(
       );
 
     case "info":
-      // Info blocks are just informational - auto-advance or show as read-only
       return (
-        <div className="p-4 rounded-lg bg-slate-700/30 border border-slate-600">
-          <p className="text-slate-300 leading-relaxed">
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="p-6 rounded-2xl bg-slate-800/30 border border-slate-700/50"
+        >
+          <p className="text-slate-300 text-lg leading-relaxed">
             {question.description || "Continue para a próxima seção."}
           </p>
-        </div>
+        </motion.div>
       );
 
     default:
