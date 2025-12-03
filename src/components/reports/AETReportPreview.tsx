@@ -3,6 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import DOMPurify from "dompurify";
 
 interface DimensionScore {
   name: string;
@@ -25,6 +26,14 @@ interface ReportData {
 interface AETReportPreviewProps {
   data: ReportData;
 }
+
+// Sanitize HTML content to prevent XSS
+const sanitizeHtml = (html: string): string => {
+  return DOMPurify.sanitize(html, {
+    ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'span', 'div', 'table', 'thead', 'tbody', 'tr', 'th', 'td'],
+    ALLOWED_ATTR: ['class', 'style'],
+  });
+};
 
 export function AETReportPreview({ data }: AETReportPreviewProps) {
   const getNRELabel = (score: number): string => {
@@ -175,7 +184,7 @@ export function AETReportPreview({ data }: AETReportPreviewProps) {
         </h2>
         <div 
           className="prose prose-sm max-w-none text-justify"
-          dangerouslySetInnerHTML={{ __html: data.analysis || "<p>Análise não disponível.</p>" }}
+          dangerouslySetInnerHTML={{ __html: sanitizeHtml(data.analysis || "<p>Análise não disponível.</p>") }}
         />
       </section>
 
@@ -186,7 +195,7 @@ export function AETReportPreview({ data }: AETReportPreviewProps) {
         </h2>
         <div 
           className="prose prose-sm max-w-none text-justify"
-          dangerouslySetInnerHTML={{ __html: data.conclusion || "<p>Conclusão não disponível.</p>" }}
+          dangerouslySetInnerHTML={{ __html: sanitizeHtml(data.conclusion || "<p>Conclusão não disponível.</p>") }}
         />
       </section>
 

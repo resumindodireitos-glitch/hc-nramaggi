@@ -3,6 +3,15 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import logoHC from "@/assets/logo-hc-new.png";
 import logoAmaggi from "@/assets/logo-amaggi-new.png";
+import DOMPurify from "dompurify";
+
+// Sanitize HTML content to prevent XSS
+const sanitizeHtml = (html: string): string => {
+  return DOMPurify.sanitize(html, {
+    ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'span', 'div', 'table', 'thead', 'tbody', 'tr', 'th', 'td'],
+    ALLOWED_ATTR: ['class', 'style'],
+  });
+};
 
 interface DimensionScore {
   name: string;
@@ -447,7 +456,7 @@ export function TanguroReportTemplate({ data }: TanguroReportTemplateProps) {
             <h3 className="font-bold text-blue-800 mb-3 bg-blue-100 p-2 rounded">ANÁLISE</h3>
             <div 
               className="prose prose-sm max-w-none text-justify leading-relaxed"
-              dangerouslySetInnerHTML={{ __html: data.analysis || "<p>Análise não disponível.</p>" }}
+              dangerouslySetInnerHTML={{ __html: sanitizeHtml(data.analysis || "<p>Análise não disponível.</p>") }}
             />
           </section>
 
@@ -455,7 +464,7 @@ export function TanguroReportTemplate({ data }: TanguroReportTemplateProps) {
             <h3 className="font-bold text-blue-800 mb-3 bg-blue-100 p-2 rounded">CONCLUSÃO</h3>
             <div 
               className="prose prose-sm max-w-none text-justify leading-relaxed"
-              dangerouslySetInnerHTML={{ __html: data.conclusion || "<p>Conclusão não disponível.</p>" }}
+              dangerouslySetInnerHTML={{ __html: sanitizeHtml(data.conclusion || "<p>Conclusão não disponível.</p>") }}
             />
           </section>
 
