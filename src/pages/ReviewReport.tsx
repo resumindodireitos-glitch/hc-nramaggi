@@ -11,6 +11,8 @@ import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AETReportPreview } from "@/components/reports/AETReportPreview";
 import { UniversalScoreChart } from "@/components/reports/UniversalScoreChart";
+import { TanguroReportTemplate } from "@/components/reports/TanguroReportTemplate";
+import { mapReportToTanguroFormat } from "@/lib/tanguroDataMapper";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { printHtmlAsPdf } from "@/lib/pdfUtils";
@@ -59,6 +61,7 @@ export default function ReviewReport() {
   const [editedAnalysis, setEditedAnalysis] = useState("");
   const [editedConclusion, setEditedConclusion] = useState("");
   const [editedRecommendations, setEditedRecommendations] = useState("");
+  const [previewMode, setPreviewMode] = useState<"simple" | "tanguro">("tanguro");
 
   useEffect(() => {
     if (!isAdmin) {
@@ -576,22 +579,59 @@ export default function ReviewReport() {
 
         {/* Preview Dialog */}
         <Dialog open={showPreview} onOpenChange={setShowPreview}>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-auto">
-            <DialogHeader>
-              <DialogTitle>Preview do Relatório AET</DialogTitle>
+          <DialogContent className="max-w-5xl max-h-[95vh] overflow-auto p-0">
+            <DialogHeader className="p-4 border-b bg-muted/30 sticky top-0 z-10">
+              <div className="flex items-center justify-between">
+                <DialogTitle>Preview do Relatório</DialogTitle>
+                <div className="flex gap-2">
+                  <Button 
+                    variant={previewMode === "simple" ? "default" : "outline"} 
+                    size="sm"
+                    onClick={() => setPreviewMode("simple")}
+                  >
+                    Simples
+                  </Button>
+                  <Button 
+                    variant={previewMode === "tanguro" ? "default" : "outline"} 
+                    size="sm"
+                    onClick={() => setPreviewMode("tanguro")}
+                  >
+                    Tanguro (Oficial)
+                  </Button>
+                </div>
+              </div>
             </DialogHeader>
-            <AETReportPreview
-              data={{
-                respondentData: respondent,
-                dimensionScores: dimensionScores,
-                analysis: editedAnalysis,
-                conclusion: editedConclusion,
-                recommendations: editedRecommendations.replace(/<[^>]*>/g, '').split('\n').filter(r => r.trim()),
-                riskLevel: report.risk_level,
-                formType: report.submissions?.forms?.type || "ergos",
-                createdAt: report.created_at || new Date().toISOString(),
-              }}
-            />
+            <div className="p-0">
+              {previewMode === "simple" ? (
+                <div className="p-4">
+                  <AETReportPreview
+                    data={{
+                      respondentData: respondent,
+                      dimensionScores: dimensionScores,
+                      analysis: editedAnalysis,
+                      conclusion: editedConclusion,
+                      recommendations: editedRecommendations.replace(/<[^>]*>/g, '').split('\n').filter(r => r.trim()),
+                      riskLevel: report.risk_level,
+                      formType: report.submissions?.forms?.type || "ergos",
+                      createdAt: report.created_at || new Date().toISOString(),
+                    }}
+                  />
+                </div>
+              ) : (
+                <TanguroReportTemplate
+                  data={mapReportToTanguroFormat(
+                    {
+                      ...report,
+                      ai_analysis_text: editedAnalysis,
+                      ai_conclusion: editedConclusion,
+                      ai_recommendations: editedRecommendations.replace(/<[^>]*>/g, '').split('\n').filter(r => r.trim()),
+                    },
+                    report.submissions,
+                    report.submissions?.forms
+                  )}
+                />
+              )}
+            </div>
           </DialogContent>
         </Dialog>
       </div>
