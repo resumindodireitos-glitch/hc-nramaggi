@@ -4,9 +4,16 @@ import { Separator } from "@/components/ui/separator";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
+interface DimensionScore {
+  name: string;
+  score: number;
+  status?: string;
+  color?: string;
+}
+
 interface ReportData {
   respondentData: Record<string, string>;
-  dimensionScores: Array<[string, number]>;
+  dimensionScores: DimensionScore[] | Array<[string, number]>;
   analysis: string;
   conclusion: string;
   recommendations: string[];
@@ -46,6 +53,16 @@ export function AETReportPreview({ data }: AETReportPreviewProps) {
     if (score >= 20) return "text-orange-600";
     return "text-red-600";
   };
+
+  // Normalize dimension scores to consistent format
+  const normalizedScores: DimensionScore[] = data.dimensionScores.map(item => {
+    if (Array.isArray(item)) {
+      // Legacy tuple format [name, score]
+      return { name: item[0], score: item[1] };
+    }
+    // New object format
+    return item;
+  });
 
   return (
     <div className="bg-white text-black p-8 max-w-4xl mx-auto print:p-0" style={{ fontFamily: 'Arial, sans-serif' }}>
@@ -112,7 +129,7 @@ export function AETReportPreview({ data }: AETReportPreviewProps) {
       </section>
 
       {/* Dimension Scores */}
-      {data.dimensionScores.length > 0 && (
+      {normalizedScores.length > 0 && (
         <section className="mb-6">
           <h2 className="text-lg font-bold text-primary border-b border-gray-300 pb-1 mb-3">
             3. PONTUAÇÃO POR DIMENSÃO
@@ -126,24 +143,22 @@ export function AETReportPreview({ data }: AETReportPreviewProps) {
               </tr>
             </thead>
             <tbody>
-              {data.dimensionScores.map(([dimension, score], index) => (
+              {normalizedScores.map((dim, index) => (
                 <tr key={index} className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}>
-                  <td className="border p-2">{dimension}</td>
-                  <td className={`border p-2 text-center font-bold ${getScoreColor(Number(score))}`}>
-                    {score}%
+                  <td className="border p-2">{dim.name}</td>
+                  <td className={`border p-2 text-center font-bold ${getScoreColor(Number(dim.score))}`}>
+                    {dim.score}%
                   </td>
                   <td className="border p-2 text-center">
                     <span className={`px-2 py-0.5 rounded text-xs ${
-                      Number(score) >= 80 ? "bg-green-100 text-green-800" :
-                      Number(score) >= 60 ? "bg-emerald-100 text-emerald-800" :
-                      Number(score) >= 40 ? "bg-yellow-100 text-yellow-800" :
-                      Number(score) >= 20 ? "bg-orange-100 text-orange-800" :
+                      dim.color === "green" || Number(dim.score) <= 30 ? "bg-green-100 text-green-800" :
+                      dim.color === "yellow" || Number(dim.score) <= 60 ? "bg-yellow-100 text-yellow-800" :
                       "bg-red-100 text-red-800"
                     }`}>
-                      {Number(score) >= 80 ? "Excelente" :
-                       Number(score) >= 60 ? "Bom" :
-                       Number(score) >= 40 ? "Moderado" :
-                       Number(score) >= 20 ? "Atenção" : "Crítico"}
+                      {dim.status || (
+                        Number(dim.score) <= 30 ? "Satisfatório" :
+                        Number(dim.score) <= 60 ? "Aceitável" : "Deve Melhorar"
+                      )}
                     </span>
                   </td>
                 </tr>

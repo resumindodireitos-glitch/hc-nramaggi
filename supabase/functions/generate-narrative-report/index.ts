@@ -32,15 +32,25 @@ Você é um Fisioterapeuta Ergonomista Sênior especializado em análise de risc
 # OUTPUT
 Retorne APENAS o texto narrativo da análise, sem JSON ou formatação especial.`;
 
-async function callLovableAI(systemPrompt: string, userPrompt: string, apiKey: string) {
-  const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+const AI_ENDPOINTS = {
+  lovable: "https://ai.gateway.lovable.dev/v1/chat/completions",
+  openai: "https://api.openai.com/v1/chat/completions",
+  anthropic: "https://api.anthropic.com/v1/messages",
+  deepseek: "https://api.deepseek.com/v1/chat/completions",
+  google: "https://generativelanguage.googleapis.com/v1beta/models",
+};
+
+async function callLovableAI(systemPrompt: string, userPrompt: string, apiKey: string, model = "google/gemini-2.5-flash") {
+  console.log("Calling Lovable AI with model:", model);
+  
+  const response = await fetch(AI_ENDPOINTS.lovable, {
     method: "POST",
     headers: { 
       Authorization: `Bearer ${apiKey}`, 
       "Content-Type": "application/json" 
     },
     body: JSON.stringify({
-      model: "google/gemini-2.5-flash",
+      model,
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
@@ -50,10 +60,124 @@ async function callLovableAI(systemPrompt: string, userPrompt: string, apiKey: s
 
   if (!response.ok) {
     const err = await response.text();
-    console.error("AI error:", response.status, err);
-    throw new Error(`AI error: ${response.status}`);
+    console.error("Lovable AI error:", response.status, err);
+    throw new Error(`Lovable AI error: ${response.status}`);
   }
 
+  const data = await response.json();
+  return data.choices?.[0]?.message?.content;
+}
+
+async function callOpenAI(systemPrompt: string, userPrompt: string, apiKey: string, model: string) {
+  console.log("Calling OpenAI with model:", model);
+  
+  const response = await fetch(AI_ENDPOINTS.openai, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      max_tokens: 4000,
+    }),
+  });
+
+  if (!response.ok) {
+    const err = await response.text();
+    console.error("OpenAI error:", response.status, err);
+    throw new Error(`OpenAI error: ${response.status}`);
+  }
+  
+  const data = await response.json();
+  return data.choices?.[0]?.message?.content;
+}
+
+async function callAnthropic(systemPrompt: string, userPrompt: string, apiKey: string, model: string) {
+  console.log("Calling Anthropic with model:", model);
+  
+  const response = await fetch(AI_ENDPOINTS.anthropic, {
+    method: "POST",
+    headers: {
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model,
+      max_tokens: 4000,
+      system: systemPrompt,
+      messages: [{ role: "user", content: userPrompt }],
+    }),
+  });
+
+  if (!response.ok) {
+    const err = await response.text();
+    console.error("Anthropic error:", response.status, err);
+    throw new Error(`Anthropic error: ${response.status}`);
+  }
+  
+  const data = await response.json();
+  return data.content?.[0]?.text;
+}
+
+async function callGoogleGemini(systemPrompt: string, userPrompt: string, apiKey: string, model: string) {
+  // Handle model names like "gemini-1.5-flash" or "google/gemini-1.5-flash"
+  const modelName = model.includes("/") ? model.split("/")[1] : model;
+  const url = `${AI_ENDPOINTS.google}/${modelName}:generateContent?key=${apiKey}`;
+  
+  console.log("Calling Google Gemini with model:", modelName, "URL:", url);
+  
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      contents: [
+        {
+          role: "user",
+          parts: [{ text: `${systemPrompt}\n\n${userPrompt}` }]
+        }
+      ],
+      generationConfig: {
+        temperature: 0.7,
+        maxOutputTokens: 4000,
+      }
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error("Google Gemini error:", response.status, errorText);
+    throw new Error(`Google Gemini error: ${response.status} - ${errorText}`);
+  }
+  
+  const data = await response.json();
+  return data.candidates?.[0]?.content?.parts?.[0]?.text;
+}
+
+async function callDeepSeek(systemPrompt: string, userPrompt: string, apiKey: string, model: string) {
+  console.log("Calling DeepSeek with model:", model);
+  
+  const response = await fetch(AI_ENDPOINTS.deepseek, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      max_tokens: 4000,
+    }),
+  });
+
+  if (!response.ok) {
+    const err = await response.text();
+    console.error("DeepSeek error:", response.status, err);
+    throw new Error(`DeepSeek error: ${response.status}`);
+  }
+  
   const data = await response.json();
   return data.choices?.[0]?.message?.content;
 }
@@ -112,22 +236,67 @@ serve(async (req) => {
     const fmea = report.fmea_calculations?.[0];
     const actions = report.suggested_actions || [];
     const respondent = submission?.respondent_data || {};
-    const answers = submission?.answers || {};
     const dimensionScores = report.dimensions_score || {};
 
-    // Build context for AI
+    // Get form type and fetch active AI agent
     const formType = form?.type || "ergos";
+    console.log("Fetching active agent for form type:", formType);
+
+    const { data: agent } = await supabase
+      .from("ai_prompts")
+      .select("*")
+      .eq("form_type", formType)
+      .eq("is_active", true)
+      .maybeSingle();
+
+    // Determine provider and model from agent or use defaults
+    let provider = "lovable";
+    let model = "google/gemini-2.5-flash";
+    let systemPrompt = NARRATIVE_SYSTEM_PROMPT;
+
+    if (agent) {
+      console.log("Using agent:", agent.name, "Provider:", agent.provider, "Model:", agent.model);
+      provider = agent.provider || "lovable";
+      model = agent.model || model;
+      // Use agent's system prompt if available, but append narrative-specific instructions
+      if (agent.system_prompt) {
+        systemPrompt = agent.system_prompt + "\n\n" + NARRATIVE_SYSTEM_PROMPT;
+      }
+    } else {
+      console.log("No active agent found, using defaults");
+    }
+
+    // Get API keys from system_settings
+    const { data: settingsData } = await supabase
+      .from("system_settings")
+      .select("key, value")
+      .in("key", ["OPENAI_API_KEY", "ANTHROPIC_API_KEY", "DEEPSEEK_API_KEY", "GOOGLE_API_KEY"]);
+
+    const apiKeys: Record<string, string> = {};
+    settingsData?.forEach(s => { if (s.value) apiKeys[s.key] = s.value; });
+    
+    console.log("Available API keys:", Object.keys(apiKeys));
+
+    // Build context for AI
     const cargo = respondent.cargo || "Não informado";
     const setor = respondent.setor || "Não informado";
 
     // Format dimension scores
-    const scoresText = Object.entries(dimensionScores)
-      .map(([dim, data]: [string, any]) => {
-        const score = typeof data === "object" ? data.score : data;
-        const risk = typeof data === "object" ? data.risk_color : "";
-        return `- ${dim}: ${score}% ${risk ? `(${risk})` : ""}`;
-      })
-      .join("\n");
+    let scoresText = "";
+    if (dimensionScores.dimensions && Array.isArray(dimensionScores.dimensions)) {
+      scoresText = dimensionScores.dimensions
+        .map((dim: any) => `- ${dim.name}: ${dim.normalized_score || dim.score}% (${dim.status || dim.color})`)
+        .join("\n");
+    } else {
+      scoresText = Object.entries(dimensionScores)
+        .filter(([key]) => !['blocos', 'global_score', 'risk_level', 'risk_label', 'risk_color', 'risk_description', 'calculation_method', 'calculated_at', 'dimensions'].includes(key))
+        .map(([dim, data]: [string, any]) => {
+          const score = typeof data === "object" ? (data.normalized_score || data.score) : data;
+          const risk = typeof data === "object" ? data.color || data.status : "";
+          return `- ${dim}: ${score}% ${risk ? `(${risk})` : ""}`;
+        })
+        .join("\n");
+    }
 
     // Format FMEA data
     const fmeaText = fmea 
@@ -151,7 +320,7 @@ Capacidade de Detecção: ${fmea.capacidade_deteccao}/5`
 - Formulário: ${form?.title || "N/A"}
 
 ## Scores por Dimensão
-${scoresText}
+${scoresText || "Nenhuma dimensão disponível"}
 
 ## Avaliação FMEA
 ${fmeaText}
@@ -172,11 +341,80 @@ ${section === "conclusion"
 }`;
 
     console.log("Generating narrative for report:", reportId, "section:", section || "full");
+    console.log("Using provider:", provider, "Model:", model);
 
-    const narrative = await callLovableAI(NARRATIVE_SYSTEM_PROMPT, userPrompt, lovableApiKey);
+    let narrative: string | null = null;
+
+    try {
+      switch (provider) {
+        case "google":
+          if (apiKeys["GOOGLE_API_KEY"]) {
+            narrative = await callGoogleGemini(systemPrompt, userPrompt, apiKeys["GOOGLE_API_KEY"], model);
+          } else if (lovableApiKey) {
+            console.log("GOOGLE_API_KEY not found, falling back to Lovable AI");
+            narrative = await callLovableAI(systemPrompt, userPrompt, lovableApiKey);
+          }
+          break;
+          
+        case "openai":
+          if (apiKeys["OPENAI_API_KEY"]) {
+            narrative = await callOpenAI(systemPrompt, userPrompt, apiKeys["OPENAI_API_KEY"], model);
+          } else if (lovableApiKey) {
+            console.log("OPENAI_API_KEY not found, falling back to Lovable AI");
+            narrative = await callLovableAI(systemPrompt, userPrompt, lovableApiKey);
+          }
+          break;
+          
+        case "anthropic":
+          if (apiKeys["ANTHROPIC_API_KEY"]) {
+            narrative = await callAnthropic(systemPrompt, userPrompt, apiKeys["ANTHROPIC_API_KEY"], model);
+          } else if (lovableApiKey) {
+            console.log("ANTHROPIC_API_KEY not found, falling back to Lovable AI");
+            narrative = await callLovableAI(systemPrompt, userPrompt, lovableApiKey);
+          }
+          break;
+          
+        case "deepseek":
+          if (apiKeys["DEEPSEEK_API_KEY"]) {
+            narrative = await callDeepSeek(systemPrompt, userPrompt, apiKeys["DEEPSEEK_API_KEY"], model);
+          } else if (lovableApiKey) {
+            console.log("DEEPSEEK_API_KEY not found, falling back to Lovable AI");
+            narrative = await callLovableAI(systemPrompt, userPrompt, lovableApiKey);
+          }
+          break;
+          
+        case "lovable":
+        default:
+          if (lovableApiKey) {
+            narrative = await callLovableAI(systemPrompt, userPrompt, lovableApiKey, model);
+          }
+          break;
+      }
+    } catch (aiError) {
+      console.error("AI call failed:", aiError);
+      
+      // Try fallback to Lovable AI if primary provider fails
+      if (provider !== "lovable" && lovableApiKey) {
+        console.log("Primary provider failed, trying Lovable AI fallback");
+        try {
+          narrative = await callLovableAI(systemPrompt, userPrompt, lovableApiKey);
+        } catch (fallbackError) {
+          console.error("Lovable AI fallback also failed:", fallbackError);
+        }
+      }
+    }
 
     if (!narrative) {
-      throw new Error("Failed to generate narrative");
+      console.error("All AI providers failed");
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: "Failed to generate narrative - all AI providers failed",
+          narrative: "Análise não disponível. Por favor, verifique a configuração do agente de IA.",
+          fallback: true
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     // Optionally update the report with the generated text
@@ -203,22 +441,28 @@ ${section === "conclusion"
     }
 
     // Log AI usage
+    const inputTokens = Math.ceil(userPrompt.length / 4);
+    const outputTokens = Math.ceil(narrative.length / 4);
+    
     await supabase.from("ai_usage").insert({
-      model: "google/gemini-2.5-flash",
-      provider: "lovable",
+      model: model,
+      provider: provider,
       submission_id: submission?.id,
-      input_tokens: userPrompt.length / 4, // Rough estimate
-      output_tokens: narrative.length / 4,
-      total_tokens: (userPrompt.length + narrative.length) / 4,
+      input_tokens: inputTokens,
+      output_tokens: outputTokens,
+      total_tokens: inputTokens + outputTokens,
+      agent_id: agent?.id || null,
     });
 
-    console.log("Narrative generated successfully");
+    console.log("Narrative generated successfully, length:", narrative.length);
 
     return new Response(
       JSON.stringify({ 
         success: true, 
         narrative,
-        section: section || "analysis"
+        section: section || "analysis",
+        provider,
+        model
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

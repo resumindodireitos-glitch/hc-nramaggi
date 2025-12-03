@@ -517,7 +517,16 @@ Analise e gere o relatório técnico em JSON.`;
 
     if (reportError) throw reportError;
 
-    await supabase.from("submissions").update({ status: "processed" }).eq("id", submissionId);
+    // Only update to "processed" if not already "approved" (preserve approved status)
+    const { data: currentSubmission } = await supabase
+      .from("submissions")
+      .select("status")
+      .eq("id", submissionId)
+      .single();
+
+    if (currentSubmission?.status !== "approved") {
+      await supabase.from("submissions").update({ status: "processed" }).eq("id", submissionId);
+    }
 
     console.log("Report created:", report.id);
 
