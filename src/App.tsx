@@ -9,6 +9,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import AdminSettings from "./pages/AdminSettings";
+import PublicFormSubmit from "./pages/PublicFormSubmit";
 
 import Dashboard from "./pages/Dashboard";
 import Forms from "./pages/Forms";
@@ -37,8 +38,11 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <Routes>
+            {/* Public Routes */}
             <Route path="/" element={<Index />} />
             <Route path="/login" element={<Login />} />
+            <Route path="/f/:id" element={<PublicFormSubmit />} />
+            <Route path="/responder/:id" element={<PublicFormSubmit />} />
             
             <Route
               path="/dashboard"
