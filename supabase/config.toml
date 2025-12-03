@@ -35,3 +35,6 @@ verify_jwt = false
 
 [functions.scheduled-tasks]
 verify_jwt = false
+
+[functions.universal-calculator]
+verify_jwt = false
