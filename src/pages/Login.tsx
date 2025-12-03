@@ -7,8 +7,9 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { Loader2, Shield, Lock, Mail } from "lucide-react";
+import { loginSchema, validateWithZod } from "@/lib/validations";
 import logoHC from "@/assets/logo-hc-new.png";
-import logoAmaggi from "@/assets/logo-amaggi.png";
+import logoAmaggi from "@/assets/logo-amaggi-new.png";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -36,6 +37,15 @@ export default function Login() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate with Zod
+    const validation = validateWithZod(loginSchema, { email, password });
+    if (!validation.success && validation.errors) {
+      const firstError = Object.values(validation.errors)[0]?.[0];
+      toast.error("Dados inválidos", { description: firstError });
+      return;
+    }
+    
     setIsLoading(true);
 
     const { error } = await signIn(email, password);
@@ -63,7 +73,7 @@ export default function Login() {
           <div className="flex items-center gap-3">
             <img src={logoHC} alt="HC Logo" className="h-10 w-auto rounded-lg" />
             <span className="text-lg font-medium text-white/60">×</span>
-            <img src={logoAmaggi} alt="Amaggi Logo" className="h-10 w-auto brightness-0 invert opacity-90" />
+            <img src={logoAmaggi} alt="Amaggi Logo" className="h-10 w-auto" />
           </div>
           
           <div className="space-y-6">

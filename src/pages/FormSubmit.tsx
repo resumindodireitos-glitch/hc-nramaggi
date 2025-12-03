@@ -15,6 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Loader2, ArrowLeft, Send, ClipboardList, CheckCircle2 } from "lucide-react";
 import { RespondentDataForm, RespondentData } from "@/components/forms/RespondentDataForm";
+import { respondentDataSchema, validateWithZod } from "@/lib/validations";
 import type { Database, Json } from "@/integrations/supabase/types";
 
 type Form = Database["public"]["Tables"]["forms"]["Row"];
@@ -95,20 +96,11 @@ export default function FormSubmit() {
   const progress = ((currentStep + 1) / totalSteps) * 100;
 
   const validateRespondentData = () => {
-    if (!respondentData.nome.trim()) {
-      toast.error("Nome é obrigatório");
-      return false;
-    }
-    if (!respondentData.setor.trim()) {
-      toast.error("Setor é obrigatório");
-      return false;
-    }
-    if (!respondentData.cargo.trim()) {
-      toast.error("Cargo é obrigatório");
-      return false;
-    }
-    if (!respondentData.tempo_empresa) {
-      toast.error("Tempo na empresa é obrigatório");
+    const validation = validateWithZod(respondentDataSchema, respondentData);
+    
+    if (!validation.success && validation.errors) {
+      const firstError = Object.values(validation.errors)[0]?.[0];
+      toast.error(firstError || "Dados inválidos");
       return false;
     }
     return true;

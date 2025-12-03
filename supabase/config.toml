@@ -17,3 +17,9 @@ verify_jwt = false
 
 [functions.process-document]
 verify_jwt = false
+
+[functions.webhook-google-forms]
+verify_jwt = false
+
+[functions.webhook-microsoft-forms]
+verify_jwt = false
