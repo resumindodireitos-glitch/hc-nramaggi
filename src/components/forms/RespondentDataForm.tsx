@@ -1,8 +1,10 @@
+import { useEffect, useState } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { User, Building2, Briefcase, Calendar, Clock } from "lucide-react";
+import { User, Building2, Briefcase, Calendar, Clock, Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 export interface RespondentData {
   nome: string;
@@ -17,7 +19,17 @@ export interface RespondentData {
 interface RespondentDataFormProps {
   data: RespondentData;
   onChange: (data: RespondentData) => void;
-  empresaFixa?: string;
+}
+
+interface Department {
+  id: string;
+  name: string;
+}
+
+interface JobRole {
+  id: string;
+  name: string;
+  department_id: string | null;
 }
 
 const GENEROS = [
@@ -38,10 +50,52 @@ const TEMPO_EMPRESA = [
   "Acima de 15 anos"
 ];
 
-export function RespondentDataForm({ data, onChange, empresaFixa }: RespondentDataFormProps) {
+export function RespondentDataForm({ data, onChange }: RespondentDataFormProps) {
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [jobRoles, setJobRoles] = useState<JobRole[]>([]);
+  const [loadingData, setLoadingData] = useState(true);
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      const [deptRes, rolesRes] = await Promise.all([
+        supabase.from("departments").select("id, name").order("name"),
+        supabase.from("job_roles").select("id, name, department_id").order("name")
+      ]);
+
+      if (deptRes.data) setDepartments(deptRes.data);
+      if (rolesRes.data) setJobRoles(rolesRes.data);
+    } catch (error) {
+      console.error("Error fetching data:", error);
+    } finally {
+      setLoadingData(false);
+    }
+  };
+
   const updateField = (field: keyof RespondentData, value: string) => {
     onChange({ ...data, [field]: value });
   };
+
+  // Filter job roles by selected department
+  const filteredJobRoles = data.setor 
+    ? jobRoles.filter(jr => {
+        const dept = departments.find(d => d.name === data.setor);
+        return dept ? jr.department_id === dept.id : true;
+      })
+    : jobRoles;
+
+  if (loadingData) {
+    return (
+      <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
+        <CardContent className="flex items-center justify-center py-12">
+          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
@@ -71,53 +125,58 @@ export function RespondentDataForm({ data, onChange, empresaFixa }: RespondentDa
             />
           </div>
 
-          {/* Empresa */}
+          {/* Empresa - Fixo Amaggi */}
           <div className="space-y-2">
             <Label htmlFor="empresa" className="flex items-center gap-2">
               <Building2 className="h-4 w-4 text-muted-foreground" />
-              Empresa *
+              Empresa
             </Label>
-            {empresaFixa ? (
-              <Input id="empresa" value={empresaFixa} disabled className="bg-muted" />
-            ) : (
-              <Input
-                id="empresa"
-                value={data.empresa}
-                onChange={(e) => updateField("empresa", e.target.value)}
-                placeholder="Nome da empresa"
-                required
-              />
-            )}
+            <Input 
+              id="empresa" 
+              value="Amaggi" 
+              disabled 
+              className="bg-muted font-medium" 
+            />
           </div>
 
-          {/* Setor */}
+          {/* Setor - Select */}
           <div className="space-y-2">
             <Label htmlFor="setor" className="flex items-center gap-2">
               <Building2 className="h-4 w-4 text-muted-foreground" />
               Setor/Departamento *
             </Label>
-            <Input
-              id="setor"
-              value={data.setor}
-              onChange={(e) => updateField("setor", e.target.value)}
-              placeholder="Ex: Administrativo, Operacional"
-              required
-            />
+            <Select value={data.setor} onValueChange={(v) => {
+              updateField("setor", v);
+              // Reset cargo when setor changes
+              if (data.cargo) updateField("cargo", "");
+            }}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione o setor..." />
+              </SelectTrigger>
+              <SelectContent>
+                {departments.map((dept) => (
+                  <SelectItem key={dept.id} value={dept.name}>{dept.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
-          {/* Cargo/Função */}
+          {/* Cargo - Select */}
           <div className="space-y-2">
             <Label htmlFor="cargo" className="flex items-center gap-2">
               <Briefcase className="h-4 w-4 text-muted-foreground" />
               Cargo/Função *
             </Label>
-            <Input
-              id="cargo"
-              value={data.cargo}
-              onChange={(e) => updateField("cargo", e.target.value)}
-              placeholder="Ex: Analista, Operador"
-              required
-            />
+            <Select value={data.cargo} onValueChange={(v) => updateField("cargo", v)}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione o cargo..." />
+              </SelectTrigger>
+              <SelectContent>
+                {filteredJobRoles.map((role) => (
+                  <SelectItem key={role.id} value={role.name}>{role.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Gênero */}

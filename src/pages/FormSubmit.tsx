@@ -42,7 +42,7 @@ export default function FormSubmit() {
   
   const [respondentData, setRespondentData] = useState<RespondentData>({
     nome: profile?.full_name || "",
-    empresa: profile?.company || "",
+    empresa: "Amaggi",
     setor: profile?.department || "",
     cargo: profile?.job_title || "",
     genero: "",
@@ -59,7 +59,7 @@ export default function FormSubmit() {
       setRespondentData(prev => ({
         ...prev,
         nome: prev.nome || profile.full_name || "",
-        empresa: prev.empresa || profile.company || "",
+        empresa: "Amaggi",
         setor: prev.setor || profile.department || "",
         cargo: prev.cargo || profile.job_title || "",
       }));
@@ -97,10 +97,6 @@ export default function FormSubmit() {
   const validateRespondentData = () => {
     if (!respondentData.nome.trim()) {
       toast.error("Nome é obrigatório");
-      return false;
-    }
-    if (!respondentData.empresa.trim()) {
-      toast.error("Empresa é obrigatória");
       return false;
     }
     if (!respondentData.setor.trim()) {
@@ -164,6 +160,7 @@ export default function FormSubmit() {
           user_id: user.id,
           email: profile?.email,
           ...respondentData,
+          empresa: "Amaggi",
         } as Json,
         status: "pending_ai",
       });
