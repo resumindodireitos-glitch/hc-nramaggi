@@ -8,7 +8,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
-import { X } from "lucide-react";
+import { X, User, Building2, Briefcase } from "lucide-react";
 import type { FormQuestion } from "./QuestionEditor";
 
 interface FormPreviewProps {
@@ -131,6 +131,26 @@ export function FormPreview({ title, description, questions, onClose }: FormPrev
               </div>
             </div>
           )}
+
+          {question.type === "slider" && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-4">
+                <span className="text-sm text-muted-foreground">Baixo ({question.min ?? 0})</span>
+                <Slider
+                  value={[value ?? question.min ?? 0]}
+                  onValueChange={([v]) => updateAnswer(question.id, v)}
+                  min={question.min ?? 0}
+                  max={question.max ?? 100}
+                  step={10}
+                  className="flex-1"
+                />
+                <span className="text-sm text-muted-foreground">Alto ({question.max ?? 100})</span>
+              </div>
+              <div className="text-center">
+                <span className="text-2xl font-bold text-primary">{value ?? question.min ?? 0}</span>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -157,6 +177,36 @@ export function FormPreview({ title, description, questions, onClose }: FormPrev
             {description && <CardDescription>{description}</CardDescription>}
           </CardHeader>
           <CardContent className="pt-6 space-y-6">
+            {/* Preview dos dados do respondente */}
+            <div className="p-4 bg-primary/5 rounded-lg border border-primary/20 space-y-4">
+              <div className="flex items-center gap-2 text-primary font-medium">
+                <User className="h-5 w-5" />
+                <span>Dados do Respondente (Preview)</span>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2 text-sm">
+                <div className="flex items-center gap-2">
+                  <User className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-muted-foreground">Nome:</span>
+                  <span className="font-medium">João da Silva</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Building2 className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-muted-foreground">Empresa:</span>
+                  <span className="font-medium">Amaggi</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Building2 className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-muted-foreground">Setor:</span>
+                  <span className="font-medium">Operacional</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Briefcase className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-muted-foreground">Cargo:</span>
+                  <span className="font-medium">Operador</span>
+                </div>
+              </div>
+            </div>
+
             {questions.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground">
                 Nenhuma pergunta adicionada ao formulário
