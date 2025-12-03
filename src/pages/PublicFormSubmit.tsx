@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import type { Database, Json } from "@/integrations/supabase/types";
 import logoHC from "@/assets/logo-hc-new.png";
+import { ConsentModal, ConsentData } from "@/components/lgpd/ConsentModal";
 
 type Form = Database["public"]["Tables"]["forms"]["Row"];
 
@@ -115,6 +116,28 @@ export default function PublicFormSubmit() {
     tempo_empresa: "",
     data_avaliacao: new Date().toISOString().split("T")[0],
   });
+  
+  // LGPD Consent
+  const [showConsent, setShowConsent] = useState(true);
+  const [consentData, setConsentData] = useState<ConsentData | null>(null);
+
+  const handleConsentAccept = async (consent: ConsentData) => {
+    setConsentData(consent);
+    setShowConsent(false);
+    
+    // Log consent (will be linked to submission later)
+    try {
+      const ipHash = btoa(navigator.userAgent + new Date().toDateString()).slice(0, 64);
+      await supabase.from("consent_logs").insert({
+        ip_hash: ipHash,
+        term_version: consent.term_version,
+        consent_text: consent.consent_text,
+        user_agent: consent.user_agent,
+      });
+    } catch (error) {
+      console.error("Error logging consent:", error);
+    }
+  };
 
   useEffect(() => {
     if (id) {
@@ -373,6 +396,13 @@ export default function PublicFormSubmit() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-emerald-950 flex flex-col">
+      {/* LGPD Consent Modal */}
+      <ConsentModal 
+        open={showConsent} 
+        onAccept={handleConsentAccept}
+        formTitle={form.title}
+      />
+      
       {/* Minimal Header */}
       <header className="fixed top-0 left-0 right-0 z-50">
         <div className="px-6 py-4 flex items-center justify-between">

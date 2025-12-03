@@ -30,6 +30,7 @@ import SubmissionsManagement from "./pages/SubmissionsManagement";
 import SystemLogs from "./pages/SystemLogs";
 import Profile from "./pages/Profile";
 import SystemUpdates from "./pages/SystemUpdates";
+import LGPDManagement from "./pages/LGPDManagement";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -223,6 +224,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <SystemUpdates />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/lgpd"
+              element={
+                <ProtectedRoute requireAdmin>
+                  <LGPDManagement />
                 </ProtectedRoute>
               }
             />

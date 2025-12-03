@@ -50,7 +50,8 @@ const navItems: NavItem[] = [
   { label: "Geração em Massa", href: "/admin/bulk", icon: <FileArchive className="h-5 w-5" />, adminOnly: true },
   { label: "Usuários", href: "/admin/users", icon: <Users className="h-5 w-5" />, adminOnly: true },
   { label: "Logs do Sistema", href: "/admin/logs", icon: <ScrollText className="h-5 w-5" />, adminOnly: true },
-  { label: "Config. Sistema", href: "/admin/settings", icon: <Shield className="h-5 w-5" />, adminOnly: true },
+  { label: "LGPD & Privacidade", href: "/admin/lgpd", icon: <Shield className="h-5 w-5" />, adminOnly: true },
+  { label: "Config. Sistema", href: "/admin/settings", icon: <Settings className="h-5 w-5" />, adminOnly: true },
 ];
 
 function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {

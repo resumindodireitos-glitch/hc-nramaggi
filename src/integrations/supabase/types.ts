@@ -165,6 +165,13 @@ export type Database = {
             foreignKeyName: "ai_usage_submission_id_fkey"
             columns: ["submission_id"]
             isOneToOne: false
+            referencedRelation: "participation_control"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "ai_usage_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
             referencedRelation: "submissions"
             referencedColumns: ["id"]
           },
@@ -242,6 +249,64 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: []
+      }
+      consent_logs: {
+        Row: {
+          accepted_at: string
+          consent_text: string
+          created_at: string | null
+          device_fingerprint: string | null
+          id: string
+          ip_hash: string
+          submission_id: string | null
+          term_version: string
+          user_agent: string | null
+        }
+        Insert: {
+          accepted_at?: string
+          consent_text: string
+          created_at?: string | null
+          device_fingerprint?: string | null
+          id?: string
+          ip_hash: string
+          submission_id?: string | null
+          term_version?: string
+          user_agent?: string | null
+        }
+        Update: {
+          accepted_at?: string
+          consent_text?: string
+          created_at?: string | null
+          device_fingerprint?: string | null
+          id?: string
+          ip_hash?: string
+          submission_id?: string | null
+          term_version?: string
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "consent_logs_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "participation_control"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "consent_logs_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "submissions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "consent_logs_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "submissions_anonymized"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       departments: {
         Row: {
@@ -669,6 +734,13 @@ export type Database = {
             foreignKeyName: "reports_submission_id_fkey"
             columns: ["submission_id"]
             isOneToOne: true
+            referencedRelation: "participation_control"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "reports_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: true
             referencedRelation: "submissions"
             referencedColumns: ["id"]
           },
@@ -856,6 +928,36 @@ export type Database = {
       }
     }
     Views: {
+      aggregated_reports_by_role: {
+        Row: {
+          approved_reports: number | null
+          avg_risk_score: number | null
+          cargo: string | null
+          first_submission: string | null
+          form_title: string | null
+          form_type: Database["public"]["Enums"]["form_type"] | null
+          last_submission: string | null
+          most_common_risk_level: string | null
+          setor: string | null
+          total_submissions: number | null
+        }
+        Relationships: []
+      }
+      participation_control: {
+        Row: {
+          cargo: string | null
+          form_title: string | null
+          form_type: Database["public"]["Enums"]["form_type"] | null
+          has_report: boolean | null
+          is_approved: boolean | null
+          nome: string | null
+          setor: string | null
+          status: Database["public"]["Enums"]["submission_status"] | null
+          submission_id: string | null
+          submitted_at: string | null
+        }
+        Relationships: []
+      }
       submissions_anonymized: {
         Row: {
           answers: Json | null
@@ -896,7 +998,17 @@ export type Database = {
       }
     }
     Functions: {
+      anonymize_by_identifier: {
+        Args: { target_identifier: string }
+        Returns: number
+      }
       anonymize_expired_submissions: { Args: never; Returns: number }
+      anonymize_submission: {
+        Args: { target_submission_id: string }
+        Returns: boolean
+      }
+      cleanup_old_pii: { Args: never; Returns: number }
+      export_user_data: { Args: { target_identifier: string }; Returns: Json }
       generate_respondent_hash: {
         Args: { respondent_data: Json }
         Returns: string
@@ -904,6 +1016,19 @@ export type Database = {
       generate_respondent_hash_secure: {
         Args: { respondent_data: Json }
         Returns: string
+      }
+      get_individual_responses_by_role: {
+        Args: { target_cargo: string; target_setor?: string }
+        Returns: {
+          answers: Json
+          cargo: string
+          form_title: string
+          nome: string
+          risk_level: string
+          setor: string
+          submission_id: string
+          submitted_at: string
+        }[]
       }
       get_submission_full_data: {
         Args: { submission_uuid: string }
