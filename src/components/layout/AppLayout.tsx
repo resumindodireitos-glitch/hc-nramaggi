@@ -86,7 +86,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 space-y-1 overflow-y-auto overflow-x-hidden">
+      <nav className="flex-1 space-y-1 overflow-y-auto overflow-x-hidden min-h-0">
         <SidebarLabel>Menu Principal</SidebarLabel>
         {filteredNavItems.slice(0, 3).map((item) => (
           <SidebarLink
@@ -99,9 +99,12 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
 
         {isAdmin && (
           <>
-            <div className="pt-4 pb-2">
-              <SidebarLabel>Administração</SidebarLabel>
-            </div>
+            {open && (
+              <div className="pt-4 pb-2">
+                <SidebarLabel>Administração</SidebarLabel>
+              </div>
+            )}
+            {!open && <div className="pt-2" />}
             {filteredNavItems.slice(3).map((item) => (
               <SidebarLink
                 key={item.href}
