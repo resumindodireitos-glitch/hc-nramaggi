@@ -9,7 +9,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import AdminSettings from "./pages/AdminSettings";
-import Register from "./pages/Register";
+
 import Dashboard from "./pages/Dashboard";
 import Forms from "./pages/Forms";
 import FormSubmit from "./pages/FormSubmit";
@@ -36,7 +36,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
+            
             <Route
               path="/dashboard"
               element={
