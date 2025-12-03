@@ -732,6 +732,59 @@ export type Database = {
         }
         Relationships: []
       }
+      report_signatures: {
+        Row: {
+          created_at: string | null
+          id: string
+          ip_address: string | null
+          is_verified: boolean | null
+          report_id: string
+          signature_hash: string
+          signed_at: string | null
+          signer_credential: string | null
+          signer_name: string
+          signer_role: string
+          user_agent: string | null
+          verification_code: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          ip_address?: string | null
+          is_verified?: boolean | null
+          report_id: string
+          signature_hash: string
+          signed_at?: string | null
+          signer_credential?: string | null
+          signer_name: string
+          signer_role: string
+          user_agent?: string | null
+          verification_code?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          ip_address?: string | null
+          is_verified?: boolean | null
+          report_id?: string
+          signature_hash?: string
+          signed_at?: string | null
+          signer_credential?: string | null
+          signer_name?: string
+          signer_role?: string
+          user_agent?: string | null
+          verification_code?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "report_signatures_report_id_fkey"
+            columns: ["report_id"]
+            isOneToOne: false
+            referencedRelation: "reports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reports: {
         Row: {
           ai_analysis_text: string | null
@@ -1194,6 +1247,62 @@ export type Database = {
         }
         Relationships: []
       }
+      webhook_configurations: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          external_form_id: string
+          field_mapping: Json | null
+          id: string
+          internal_form_id: string | null
+          is_active: boolean | null
+          last_received_at: string | null
+          name: string
+          provider: string
+          secret_key: string | null
+          total_submissions: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          external_form_id: string
+          field_mapping?: Json | null
+          id?: string
+          internal_form_id?: string | null
+          is_active?: boolean | null
+          last_received_at?: string | null
+          name: string
+          provider: string
+          secret_key?: string | null
+          total_submissions?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          external_form_id?: string
+          field_mapping?: Json | null
+          id?: string
+          internal_form_id?: string | null
+          is_active?: boolean | null
+          last_received_at?: string | null
+          name?: string
+          provider?: string
+          secret_key?: string | null
+          total_submissions?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "webhook_configurations_internal_form_id_fkey"
+            columns: ["internal_form_id"]
+            isOneToOne: false
+            referencedRelation: "forms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       aggregated_reports_by_role: {
@@ -1285,6 +1394,14 @@ export type Database = {
         Args: { respondent_data: Json }
         Returns: string
       }
+      generate_signature_hash: {
+        Args: {
+          report_uuid: string
+          signed_timestamp: string
+          signer_name: string
+        }
+        Returns: string
+      }
       get_individual_responses_by_role: {
         Args: { target_cargo: string; target_setor?: string }
         Returns: {
@@ -1335,6 +1452,31 @@ export type Database = {
           document_id: string
           id: string
           similarity: number
+        }[]
+      }
+      sign_report: {
+        Args: {
+          p_ip_address?: string
+          p_signer_credential?: string
+          p_signer_name: string
+          p_signer_role: string
+          p_user_agent?: string
+          report_uuid: string
+        }
+        Returns: {
+          signature_hash: string
+          signature_id: string
+          verification_code: string
+        }[]
+      }
+      verify_signature: {
+        Args: { verification_code_input: string }
+        Returns: {
+          is_valid: boolean
+          report_id: string
+          signed_at: string
+          signer_credential: string
+          signer_name: string
         }[]
       }
     }

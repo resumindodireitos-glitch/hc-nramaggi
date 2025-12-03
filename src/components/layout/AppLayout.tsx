@@ -56,6 +56,7 @@ const navItems: NavItem[] = [
   { label: "Usuários", href: "/admin/users", icon: <Users className="h-5 w-5" />, adminOnly: true },
   { label: "Logs do Sistema", href: "/admin/logs", icon: <ScrollText className="h-5 w-5" />, adminOnly: true },
   { label: "Tarefas Agendadas", href: "/admin/cron-jobs", icon: <Clock className="h-5 w-5" />, adminOnly: true },
+  { label: "Webhooks", href: "/admin/webhooks", icon: <Activity className="h-5 w-5" />, adminOnly: true },
   { label: "LGPD & Privacidade", href: "/admin/lgpd", icon: <Shield className="h-5 w-5" />, adminOnly: true },
   { label: "Config. Sistema", href: "/admin/settings", icon: <Settings className="h-5 w-5" />, adminOnly: true },
 ];
