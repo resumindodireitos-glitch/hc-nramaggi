@@ -177,6 +177,22 @@ export default function UserManagement() {
     return true;
   };
 
+// Auto-set company based on role
+  const getCompanyForRole = (role: UserRole) => {
+    return role === "admin_hc" ? "HC Consultoria" : "Amaggi";
+  };
+
+  const handleRoleChange = (role: UserRole, isEdit = false) => {
+    const company = getCompanyForRole(role);
+    if (isEdit) {
+      setEditRole(role);
+      setEditCompany(company);
+    } else {
+      setNewRole(role);
+      setNewCompany(company);
+    }
+  };
+
   const openCreateDialog = () => {
     setNewEmail("");
     setNewPassword("");
@@ -195,7 +211,8 @@ export default function UserManagement() {
     setEditRole(user.role);
     setEditDepartment(user.department || "");
     setEditJobTitle(user.job_title || "");
-    setEditCompany(user.company || "");
+    // Set company based on role (auto-correct if necessary)
+    setEditCompany(getCompanyForRole(user.role));
     setErrors({});
     setShowEditDialog(true);
   };
@@ -705,26 +722,45 @@ export default function UserManagement() {
                   </div>
                   {errors.password && <p className="text-xs text-destructive">{errors.password}</p>}
                 </div>
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium">Tipo de Acesso</Label>
-                  <Select value={newRole} onValueChange={(v) => setNewRole(v as UserRole)}>
+                <div className="col-span-2 space-y-2">
+                  <Label className="text-sm font-medium">Tipo de Acesso *</Label>
+                  <Select value={newRole} onValueChange={(v) => handleRoleChange(v as UserRole)}>
                     <SelectTrigger className="h-10">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="employee_amaggi">Colaborador</SelectItem>
-                      <SelectItem value="admin_hc">Administrador</SelectItem>
+                      <SelectItem value="employee_amaggi">
+                        <div className="flex items-center gap-2">
+                          <User className="h-4 w-4 text-green-500" />
+                          <div>
+                            <span className="font-medium">Colaborador RH Amaggi</span>
+                          </div>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="admin_hc">
+                        <div className="flex items-center gap-2">
+                          <Shield className="h-4 w-4 text-blue-500" />
+                          <div>
+                            <span className="font-medium">Administrador HC</span>
+                          </div>
+                        </div>
+                      </SelectItem>
                     </SelectContent>
                   </Select>
+                  <p className="text-xs text-muted-foreground">
+                    {newRole === "admin_hc" 
+                      ? "Acesso completo para equipe HC Consultoria" 
+                      : "Acesso ao RH da empresa Amaggi"}
+                  </p>
                 </div>
                 <div className="space-y-2">
                   <Label className="text-sm font-medium">Empresa</Label>
                   <Input 
                     value={newCompany} 
-                    onChange={(e) => setNewCompany(e.target.value)} 
-                    placeholder="Nome da empresa"
-                    className="h-10"
+                    disabled
+                    className="h-10 bg-muted"
                   />
+                  <p className="text-xs text-muted-foreground">Definido automaticamente pelo tipo de acesso</p>
                 </div>
                 <div className="space-y-2">
                   <Label className="text-sm font-medium">Departamento</Label>
@@ -784,25 +820,41 @@ export default function UserManagement() {
                   <Input value={editingUser?.email || ""} disabled className="bg-muted h-10" />
                   <p className="text-xs text-muted-foreground">O email não pode ser alterado</p>
                 </div>
-                <div className="space-y-2">
+                <div className="col-span-2 space-y-2">
                   <Label className="text-sm font-medium">Tipo de Acesso</Label>
-                  <Select value={editRole} onValueChange={(v) => setEditRole(v as UserRole)}>
+                  <Select value={editRole} onValueChange={(v) => handleRoleChange(v as UserRole, true)}>
                     <SelectTrigger className="h-10">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="admin_hc">Administrador</SelectItem>
-                      <SelectItem value="employee_amaggi">Colaborador</SelectItem>
+                      <SelectItem value="employee_amaggi">
+                        <div className="flex items-center gap-2">
+                          <User className="h-4 w-4 text-green-500" />
+                          <span className="font-medium">Colaborador RH Amaggi</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="admin_hc">
+                        <div className="flex items-center gap-2">
+                          <Shield className="h-4 w-4 text-blue-500" />
+                          <span className="font-medium">Administrador HC</span>
+                        </div>
+                      </SelectItem>
                     </SelectContent>
                   </Select>
+                  <p className="text-xs text-muted-foreground">
+                    {editRole === "admin_hc" 
+                      ? "Acesso completo para equipe HC Consultoria" 
+                      : "Acesso ao RH da empresa Amaggi"}
+                  </p>
                 </div>
                 <div className="space-y-2">
                   <Label className="text-sm font-medium">Empresa</Label>
                   <Input 
                     value={editCompany} 
-                    onChange={(e) => setEditCompany(e.target.value)} 
-                    className="h-10"
+                    disabled
+                    className="h-10 bg-muted"
                   />
+                  <p className="text-xs text-muted-foreground">Definido automaticamente pelo tipo de acesso</p>
                 </div>
                 <div className="space-y-2">
                   <Label className="text-sm font-medium">Departamento</Label>
