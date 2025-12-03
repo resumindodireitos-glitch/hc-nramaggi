@@ -1,14 +1,36 @@
-# Sistema HC Consultoria - Blueprint V3.1
-## Integração de Conhecimento e FMEA Automático
+# Sistema HC Consultoria - Blueprint V3.2
+## Integração de Conhecimento, FMEA Automático e Motor de Cálculo Universal
 
 ---
 
-## NOVIDADES V3.1
+## NOVIDADES V3.2
 
-### 1. Knowledge Base (Matrizes de Risco)
-- **risk_matrix_ergos**: Riscos cognitivos/organizacionais com medidas de controle
-- **risk_matrix_hseit**: Riscos psicossociais (7 dimensões HSE UK)
-- **risk_matrix_biomecanicos**: Riscos por segmento corporal (CID-10)
+### 1. Motor de Cálculo Universal (Metadata-Driven)
+- **Edge function `universal-calculator`**: Calcula scores de qualquer formulário usando regras armazenadas no banco
+- **Colunas `calculation_rules` e `risk_thresholds`** na tabela `forms`: Armazenam fórmulas e limiares
+- **Métodos suportados**:
+  - `sum_with_coefficient`: ERGOS (0.83 × (A + B))
+  - `average_by_dimension`: HSE-IT (média percentual por dimensão)
+  - `weighted_sum`: NASA-TLX (soma ponderada)
+- **Output padronizado**: Todos os formulários geram JSON com a mesma estrutura
+
+### 2. Output JSON Padronizado
+```json
+{
+  "global_score": 75,
+  "risk_level": "medio",
+  "risk_label": "Aceitável",
+  "risk_color": "yellow",
+  "dimensions": [
+    {"name": "Atenção", "score": 7, "normalized_score": 70, "status": "Atenção", "color": "yellow"}
+  ]
+}
+```
+
+### 3. Componente Universal de Gráficos
+- `UniversalScoreChart`: Renderiza gráficos para QUALQUER tipo de formulário
+- Lê apenas o JSON padronizado, não faz `if (type == 'ergos')`
+- Suporta Radar, Barras e visualização por blocos
 
 ### 2. Cálculo FMEA Automático
 - Edge function `calculate-fmea` 

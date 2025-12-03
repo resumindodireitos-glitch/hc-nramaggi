@@ -532,33 +532,39 @@ export type Database = {
       }
       forms: {
         Row: {
+          calculation_rules: Json | null
           created_at: string | null
           created_by: string | null
           description: string | null
           id: string
           is_active: boolean | null
+          risk_thresholds: Json | null
           schema: Json
           title: string
           type: Database["public"]["Enums"]["form_type"]
           updated_at: string | null
         }
         Insert: {
+          calculation_rules?: Json | null
           created_at?: string | null
           created_by?: string | null
           description?: string | null
           id?: string
           is_active?: boolean | null
+          risk_thresholds?: Json | null
           schema?: Json
           title: string
           type?: Database["public"]["Enums"]["form_type"]
           updated_at?: string | null
         }
         Update: {
+          calculation_rules?: Json | null
           created_at?: string | null
           created_by?: string | null
           description?: string | null
           id?: string
           is_active?: boolean | null
+          risk_thresholds?: Json | null
           schema?: Json
           title?: string
           type?: Database["public"]["Enums"]["form_type"]

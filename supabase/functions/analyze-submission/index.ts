@@ -208,35 +208,106 @@ async function callGoogleGemini(systemPrompt: string, userPrompt: string, model:
   return data.candidates?.[0]?.content?.parts?.[0]?.text;
 }
 
-function generateFallbackAnalysis(formType: string, answers: Record<string, any>) {
-  const dimensionsScore: Record<string, { score: number; risk_color: string }> = {};
-  let totalScore = 0;
+/**
+ * Calculates scores using the universal calculator logic inline
+ * This ensures consistent calculation even without calling the edge function
+ */
+function calculateUniversalScore(formType: string, answers: Record<string, any>, form: any) {
+  const dimensionsScore: Record<string, { score: number; normalized_score: number; status: string; color: string }> = {};
+  let globalScore = 0;
+
+  // Get calculation rules from form or use defaults
+  const rules = form?.calculation_rules || {};
+  const thresholds = form?.risk_thresholds || {
+    levels: [
+      { max: 33, label: "Baixo", risk_level: "baixo", color: "green" },
+      { max: 66, label: "Médio", risk_level: "medio", color: "yellow" },
+      { max: 100, label: "Alto", risk_level: "alto", color: "red" },
+    ],
+    dimension_thresholds: [
+      { max: 33, status: "Adequado", color: "green" },
+      { max: 66, status: "Atenção", color: "yellow" },
+      { max: 100, status: "Crítico", color: "red" },
+    ],
+  };
+
+  const getDimensionStatus = (score: number) => {
+    for (const t of thresholds.dimension_thresholds || []) {
+      if (score <= t.max) return { status: t.status, color: t.color };
+    }
+    return { status: "Crítico", color: "red" };
+  };
+
+  const getRiskLevel = (score: number) => {
+    for (const t of thresholds.levels || []) {
+      if (score <= t.max) return { risk_level: t.risk_level, label: t.label };
+    }
+    return { risk_level: "alto", label: "Alto" };
+  };
 
   if (formType === "ergos") {
-    const factors = ["pressao_tempo", "atencao", "complexidade", "monotonia", "raciocinio", 
-                     "iniciativa", "isolamento", "horarios_turnos", "relacionamentos", "demandas_gerais"];
-    let sum = 0;
-    factors.forEach(f => {
-      const val = parseInt(answers[f]) || 0;
-      sum += val;
-      dimensionsScore[f] = { score: val, risk_color: val >= 7 ? "vermelho" : val >= 4 ? "amarelo" : "verde" };
+    // ERGOS calculation: 0.83 × (Bloco A + Bloco B)
+    const blocoA = ["pressao_tempo", "atencao", "complexidade", "monotonia", "raciocinio"];
+    const blocoB = ["iniciativa", "isolamento", "horarios_turnos", "relacionamentos", "demandas_gerais"];
+    
+    let sumA = 0, sumB = 0;
+    
+    [...blocoA, ...blocoB].forEach(f => {
+      const val = parseFloat(answers[f]) || 0;
+      const normalizedScore = (val / 10) * 100;
+      const { status, color } = getDimensionStatus(normalizedScore);
+      dimensionsScore[f] = { score: val, normalized_score: normalizedScore, status, color };
+      
+      if (blocoA.includes(f)) sumA += val;
+      else sumB += val;
     });
-    totalScore = Math.round(sum * 0.83);
+    
+    globalScore = Math.round(0.83 * (sumA + sumB));
   } else {
+    // HSE-IT calculation: average percentage per dimension
     const dimensions = ["demandas", "relacionamentos", "controle", "suporte_chefia", "suporte_colegas", "cargo", "comunicacao_mudancas"];
+    const invertedDimensions = ["demandas", "relacionamentos"];
+    let total = 0;
+    let count = 0;
+    
     dimensions.forEach(d => {
-      const val = parseInt(answers[d]) || 0;
-      dimensionsScore[d] = { score: val, risk_color: val > 50 ? "vermelho" : val > 20 ? "amarelo" : "verde" };
-      totalScore += val;
+      const val = parseFloat(answers[d]) || 0;
+      // For inverted dimensions, high values = stress; for others, invert
+      let normalizedScore = val;
+      if (!invertedDimensions.includes(d)) {
+        normalizedScore = 100 - val;
+      }
+      
+      const { status, color } = getDimensionStatus(normalizedScore);
+      dimensionsScore[d] = { score: val, normalized_score: normalizedScore, status, color };
+      total += normalizedScore;
+      count++;
     });
-    totalScore = Math.round(totalScore / dimensions.length);
+    
+    globalScore = count > 0 ? Math.round(total / count) : 0;
   }
 
+  const { risk_level, label } = getRiskLevel(globalScore);
+
   return {
-    risk_level: totalScore > 50 ? "alto" : totalScore > 30 ? "medio" : "baixo",
+    global_score: globalScore,
+    risk_level,
+    risk_label: label,
+    dimensions: Object.entries(dimensionsScore).map(([name, data]) => ({
+      name,
+      ...data,
+    })),
+  };
+}
+
+function generateFallbackAnalysis(formType: string, answers: Record<string, any>, form?: any) {
+  const calculated = calculateUniversalScore(formType, answers, form);
+
+  return {
+    risk_level: calculated.risk_level,
     form_type: formType,
-    total_score: totalScore,
-    dimensions_score: dimensionsScore,
+    total_score: calculated.global_score,
+    dimensions_score: calculated,
     analysis_text: "Análise básica gerada. Configure um agente de IA para análises detalhadas.",
     risk_inventory: [],
     conclusion: "Relatório gerado sem análise de IA completa.",
@@ -415,12 +486,18 @@ Analise e gere o relatório técnico em JSON.`;
         const jsonMatch = aiContent.match(/\{[\s\S]*\}/);
         if (!jsonMatch) throw new Error("Could not parse AI response");
         analysisResult = JSON.parse(jsonMatch[0]);
+        
+        // Ensure dimensions_score uses the universal format
+        if (!analysisResult.dimensions_score?.global_score) {
+          const calculated = calculateUniversalScore(formType, answers, submission.forms);
+          analysisResult.dimensions_score = calculated;
+        }
       } else {
-        analysisResult = generateFallbackAnalysis(formType, answers);
+        analysisResult = generateFallbackAnalysis(formType, answers, submission.forms);
       }
     } catch (aiError) {
       console.error("AI call failed:", aiError);
-      analysisResult = generateFallbackAnalysis(formType, answers);
+      analysisResult = generateFallbackAnalysis(formType, answers, submission.forms);
     }
 
     // Create report

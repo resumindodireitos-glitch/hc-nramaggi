@@ -10,6 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AETReportPreview } from "@/components/reports/AETReportPreview";
+import { UniversalScoreChart } from "@/components/reports/UniversalScoreChart";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { printHtmlAsPdf } from "@/lib/pdfUtils";
@@ -475,36 +476,15 @@ export default function ReviewReport() {
               </CardContent>
             </Card>
 
-            {/* Dimension Scores */}
-            {dimensionScores.length > 0 && (
-              <Card className="overflow-hidden border-0 shadow-sm bg-gradient-to-br from-card to-muted/20">
-                <CardHeader className="pb-3 border-b bg-muted/30">
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <div className="p-2 rounded-lg bg-primary/10">
-                      <BarChart3 className="h-4 w-4 text-primary" />
-                    </div>
-                    Pontuação por Dimensão
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="pt-4">
-                  <div className="space-y-4">
-                    {dimensionScores.map(([dimension, score]) => (
-                      <div key={dimension} className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium">{dimension}</span>
-                          <span className="text-sm font-bold">{score}%</span>
-                        </div>
-                        <div className="h-2 bg-muted rounded-full overflow-hidden">
-                          <div
-                            className={`h-full transition-all duration-500 ${getScoreColor(Number(score))}`}
-                            style={{ width: `${Math.min(100, Number(score))}%` }}
-                          />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
+            {/* Dimension Scores - Universal Chart */}
+            {report.dimensions_score && (
+              <UniversalScoreChart 
+                data={report.dimensions_score as any} 
+                showRadar={false}
+                showBars={false}
+                showBlocks={report.submissions?.forms?.type === "ergos"}
+                compact
+              />
             )}
 
             {/* Form Answers */}
