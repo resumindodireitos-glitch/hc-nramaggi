@@ -20,6 +20,11 @@ import {
   Download,
   BarChart3,
   Edit3,
+  AlertTriangle,
+  TrendingUp,
+  Building2,
+  Briefcase,
+  Clock,
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -141,7 +146,6 @@ export default function ReviewReport() {
 
       if (error) throw error;
 
-      // Open HTML in new tab for printing
       const html = atob(data.pdf);
       const blob = new Blob([html], { type: "text/html" });
       const url = URL.createObjectURL(blob);
@@ -187,29 +191,66 @@ export default function ReviewReport() {
     switch (risk?.toLowerCase()) {
       case "critico":
       case "intoleravel":
-        return "bg-destructive text-destructive-foreground";
+        return "bg-red-500/10 text-red-500 border-red-500/20";
       case "alto":
       case "substancial":
-        return "bg-destructive/80 text-destructive-foreground";
+        return "bg-orange-500/10 text-orange-500 border-orange-500/20";
       case "medio":
       case "moderado":
-        return "bg-warning text-warning-foreground";
+        return "bg-yellow-500/10 text-yellow-500 border-yellow-500/20";
       case "baixo":
       case "toleravel":
-        return "bg-success/80 text-success-foreground";
+        return "bg-emerald-500/10 text-emerald-500 border-emerald-500/20";
       case "adequado":
       case "trivial":
-        return "bg-success text-success-foreground";
+        return "bg-green-500/10 text-green-500 border-green-500/20";
       default:
         return "bg-muted text-muted-foreground";
     }
+  };
+
+  const getRiskIcon = (risk: string | null) => {
+    switch (risk?.toLowerCase()) {
+      case "critico":
+      case "intoleravel":
+      case "alto":
+      case "substancial":
+        return <AlertTriangle className="h-4 w-4" />;
+      case "adequado":
+      case "trivial":
+      case "baixo":
+        return <CheckCircle className="h-4 w-4" />;
+      default:
+        return <TrendingUp className="h-4 w-4" />;
+    }
+  };
+
+  const getScoreColor = (score: number) => {
+    if (score >= 80) return "bg-green-500";
+    if (score >= 60) return "bg-emerald-500";
+    if (score >= 40) return "bg-yellow-500";
+    if (score >= 20) return "bg-orange-500";
+    return "bg-red-500";
+  };
+
+  const fieldLabels: Record<string, string> = {
+    nome: "Nome",
+    empresa: "Empresa",
+    setor: "Setor",
+    cargo: "Cargo",
+    genero: "Gênero",
+    tempo_empresa: "Tempo na Empresa",
+    data_avaliacao: "Data da Avaliação",
   };
 
   if (loading) {
     return (
       <AppLayout>
         <div className="flex items-center justify-center h-64">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <div className="flex flex-col items-center gap-3">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="text-sm text-muted-foreground">Carregando relatório...</p>
+          </div>
         </div>
       </AppLayout>
     );
@@ -227,88 +268,118 @@ export default function ReviewReport() {
 
   const respondent = getRespondentData(report.submissions?.respondent_data || {});
   const answers = getAnswers(report.submissions?.answers || {});
+  const dimensionScores = getDimensionScores(report.dimensions_score);
 
   return (
     <AppLayout>
-      <div className="space-y-6">
+      <div className="space-y-6 max-w-7xl mx-auto">
         {/* Header */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" onClick={() => navigate("/reports")}>
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center gap-3">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={() => navigate("/reports")}
+              className="rounded-full hover:bg-muted"
+            >
               <ArrowLeft className="h-5 w-5" />
             </Button>
-            <div>
-              <h1 className="text-2xl font-bold text-foreground">Revisão de Relatório</h1>
-              <p className="text-muted-foreground text-sm">
-                {report.submissions?.forms?.title} -{" "}
-                {format(new Date(report.created_at!), "dd/MM/yyyy", { locale: ptBR })}
+            <div className="flex-1">
+              <h1 className="text-2xl font-bold text-foreground">
+                Revisão de Relatório
+              </h1>
+              <p className="text-sm text-muted-foreground">
+                {report.submissions?.forms?.title} • {format(new Date(report.created_at!), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={handleGeneratePdf} disabled={generatingPdf}>
-              {generatingPdf ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}
-              Gerar PDF
-            </Button>
-            <Button variant="outline" onClick={handleSave} disabled={saving}>
-              {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-              Salvar
-            </Button>
-            {!report.is_approved && (
-              <Button onClick={handleApprove} disabled={approving} className="gradient-primary">
-                {approving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CheckCircle className="h-4 w-4 mr-2" />}
-                Aprovar
+
+          {/* Actions & Status */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-xl bg-muted/30 border">
+            <div className="flex items-center gap-3">
+              {report.risk_level && (
+                <Badge variant="outline" className={`${getRiskColor(report.risk_level)} px-3 py-1.5 gap-2`}>
+                  {getRiskIcon(report.risk_level)}
+                  Risco {report.risk_level}
+                </Badge>
+              )}
+              <Badge variant={report.is_approved ? "default" : "secondary"} className="px-3 py-1.5">
+                {report.is_approved ? (
+                  <>
+                    <CheckCircle className="h-3 w-3 mr-1.5" />
+                    Aprovado
+                  </>
+                ) : (
+                  "Pendente Revisão"
+                )}
+              </Badge>
+            </div>
+            
+            <div className="flex items-center gap-2 flex-wrap">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={handleGeneratePdf} 
+                disabled={generatingPdf}
+                className="gap-2"
+              >
+                {generatingPdf ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                Gerar PDF
               </Button>
-            )}
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={handleSave} 
+                disabled={saving}
+                className="gap-2"
+              >
+                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                Salvar
+              </Button>
+              {!report.is_approved && (
+                <Button 
+                  size="sm"
+                  onClick={handleApprove} 
+                  disabled={approving} 
+                  className="gap-2 bg-emerald-600 hover:bg-emerald-500"
+                >
+                  {approving ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
+                  Aprovar Relatório
+                </Button>
+              )}
+            </div>
           </div>
         </div>
 
-        {/* Status Badge */}
-        <div className="flex items-center gap-3">
-          {report.risk_level && (
-            <Badge className={getRiskColor(report.risk_level)}>
-              Risco: {report.risk_level}
-            </Badge>
-          )}
-          <Badge variant={report.is_approved ? "default" : "secondary"}>
-            {report.is_approved ? "Aprovado" : "Pendente Revisão"}
-          </Badge>
-        </div>
-
-        {/* Split View */}
-        <div className="grid gap-6 lg:grid-cols-2">
-          {/* Left: Submission Data */}
-          <div className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <User className="h-5 w-5 text-primary" />
+        {/* Main Content */}
+        <div className="grid gap-6 lg:grid-cols-5">
+          {/* Left: Data */}
+          <div className="lg:col-span-2 space-y-4">
+            {/* Respondent Data */}
+            <Card className="overflow-hidden border-0 shadow-sm bg-gradient-to-br from-card to-muted/20">
+              <CardHeader className="pb-3 border-b bg-muted/30">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <div className="p-2 rounded-lg bg-primary/10">
+                    <User className="h-4 w-4 text-primary" />
+                  </div>
                   Dados do Respondente
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
-                {Object.entries(respondent).map(([key, value]) => (
-                  <div key={key} className="flex justify-between py-2 border-b border-border last:border-0">
-                    <span className="text-sm text-muted-foreground capitalize">{key.replace(/_/g, " ")}</span>
-                    <span className="text-sm font-medium">{value}</span>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <FileText className="h-5 w-5 text-primary" />
-                  Respostas do Formulário
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3 max-h-[400px] overflow-y-auto">
-                  {Object.entries(answers).map(([key, value]) => (
-                    <div key={key} className="flex justify-between items-center py-2 border-b border-border last:border-0">
-                      <span className="text-sm text-muted-foreground">{key.replace(/_/g, " ")}</span>
-                      <Badge variant="outline">{value}</Badge>
+              <CardContent className="pt-4">
+                <div className="space-y-3">
+                  {Object.entries(respondent)
+                    .filter(([key]) => !["submitted_at", "user_id"].includes(key))
+                    .map(([key, value]) => (
+                    <div key={key} className="flex items-center justify-between py-2">
+                      <span className="text-sm text-muted-foreground flex items-center gap-2">
+                        {key === "nome" && <User className="h-3.5 w-3.5" />}
+                        {key === "empresa" && <Building2 className="h-3.5 w-3.5" />}
+                        {key === "setor" && <Building2 className="h-3.5 w-3.5" />}
+                        {key === "cargo" && <Briefcase className="h-3.5 w-3.5" />}
+                        {key === "tempo_empresa" && <Clock className="h-3.5 w-3.5" />}
+                        {fieldLabels[key] || key}
+                      </span>
+                      <span className="text-sm font-medium text-foreground">{value || "-"}</span>
                     </div>
                   ))}
                 </div>
@@ -316,27 +387,29 @@ export default function ReviewReport() {
             </Card>
 
             {/* Dimension Scores */}
-            {report.dimensions_score && getDimensionScores(report.dimensions_score).length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-lg">
-                    <BarChart3 className="h-5 w-5 text-primary" />
+            {dimensionScores.length > 0 && (
+              <Card className="overflow-hidden border-0 shadow-sm bg-gradient-to-br from-card to-muted/20">
+                <CardHeader className="pb-3 border-b bg-muted/30">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <div className="p-2 rounded-lg bg-primary/10">
+                      <BarChart3 className="h-4 w-4 text-primary" />
+                    </div>
                     Pontuação por Dimensão
                   </CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    {getDimensionScores(report.dimensions_score).map(([dimension, score]) => (
-                      <div key={dimension} className="flex items-center justify-between">
-                        <span className="text-sm">{dimension}</span>
-                        <div className="flex items-center gap-2">
-                          <div className="w-32 h-2 bg-muted rounded-full overflow-hidden">
-                            <div
-                              className="h-full bg-primary transition-all"
-                              style={{ width: `${Math.min(100, Number(score))}%` }}
-                            />
-                          </div>
-                          <span className="text-sm font-medium w-12 text-right">{score}</span>
+                <CardContent className="pt-4">
+                  <div className="space-y-4">
+                    {dimensionScores.map(([dimension, score]) => (
+                      <div key={dimension} className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium">{dimension}</span>
+                          <span className="text-sm font-bold">{score}%</span>
+                        </div>
+                        <div className="h-2 bg-muted rounded-full overflow-hidden">
+                          <div
+                            className={`h-full transition-all duration-500 ${getScoreColor(Number(score))}`}
+                            style={{ width: `${Math.min(100, Number(score))}%` }}
+                          />
                         </div>
                       </div>
                     ))}
@@ -344,50 +417,78 @@ export default function ReviewReport() {
                 </CardContent>
               </Card>
             )}
-          </div>
 
-          {/* Right: AI Analysis (Editable) */}
-          <div className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <Edit3 className="h-5 w-5 text-primary" />
-                  Análise (Editável)
+            {/* Form Answers */}
+            <Card className="overflow-hidden border-0 shadow-sm bg-gradient-to-br from-card to-muted/20">
+              <CardHeader className="pb-3 border-b bg-muted/30">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <div className="p-2 rounded-lg bg-primary/10">
+                    <FileText className="h-4 w-4 text-primary" />
+                  </div>
+                  Respostas do Formulário
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Texto de Análise</Label>
+              <CardContent className="pt-4">
+                <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2">
+                  {Object.entries(answers).map(([key, value]) => (
+                    <div key={key} className="flex items-center justify-between py-2 border-b border-border/50 last:border-0">
+                      <span className="text-sm text-muted-foreground truncate max-w-[60%]">{key}</span>
+                      <Badge variant="secondary" className="font-medium">{value}</Badge>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Right: Analysis */}
+          <div className="lg:col-span-3 space-y-4">
+            <Card className="overflow-hidden border-0 shadow-sm bg-gradient-to-br from-card to-muted/20">
+              <CardHeader className="pb-3 border-b bg-muted/30">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <div className="p-2 rounded-lg bg-primary/10">
+                    <Edit3 className="h-4 w-4 text-primary" />
+                  </div>
+                  Análise do Relatório
+                  <Badge variant="outline" className="ml-2 text-xs">Editável</Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-4 space-y-6">
+                <div className="space-y-3">
+                  <Label className="text-sm font-medium">Texto de Análise</Label>
                   <Textarea
                     value={editedAnalysis}
                     onChange={(e) => setEditedAnalysis(e.target.value)}
-                    rows={10}
-                    className="resize-none"
+                    rows={12}
+                    className="resize-none bg-muted/30 border-muted focus:border-primary/50"
+                    placeholder="Digite a análise do relatório..."
                   />
                 </div>
 
-                <Separator />
+                <Separator className="bg-border/50" />
 
-                <div className="space-y-2">
-                  <Label>Conclusão</Label>
+                <div className="space-y-3">
+                  <Label className="text-sm font-medium">Conclusão</Label>
                   <Textarea
                     value={editedConclusion}
                     onChange={(e) => setEditedConclusion(e.target.value)}
                     rows={4}
-                    className="resize-none"
+                    className="resize-none bg-muted/30 border-muted focus:border-primary/50"
+                    placeholder="Digite a conclusão..."
                   />
                 </div>
 
-                <Separator />
+                <Separator className="bg-border/50" />
 
-                <div className="space-y-2">
-                  <Label>Recomendações (uma por linha)</Label>
+                <div className="space-y-3">
+                  <Label className="text-sm font-medium">Recomendações</Label>
+                  <p className="text-xs text-muted-foreground">Uma recomendação por linha</p>
                   <Textarea
                     value={editedRecommendations}
                     onChange={(e) => setEditedRecommendations(e.target.value)}
                     rows={6}
-                    className="resize-none"
-                    placeholder="Recomendação 1&#10;Recomendação 2&#10;Recomendação 3"
+                    className="resize-none bg-muted/30 border-muted focus:border-primary/50"
+                    placeholder="• Recomendação 1&#10;• Recomendação 2&#10;• Recomendação 3"
                   />
                 </div>
               </CardContent>
