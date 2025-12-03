@@ -186,28 +186,62 @@ export const SidebarLink = ({
       to={link.href}
       onClick={onClick}
       className={cn(
-        "flex items-center gap-3 group/sidebar py-2.5 rounded-xl transition-all duration-200",
+        "flex items-center gap-3 group/sidebar py-2.5 rounded-xl relative overflow-hidden",
+        "transition-all duration-300 ease-out",
         open ? "justify-start px-3" : "justify-center px-2",
         active 
           ? "bg-primary text-primary-foreground shadow-lg shadow-primary/30" 
-          : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground",
+          : "text-sidebar-foreground/70 hover:text-sidebar-foreground",
         className
       )}
       {...props}
     >
-      <span className={cn(
-        "flex-shrink-0 transition-transform duration-200",
-        active && "scale-110"
-      )}>
+      {/* Hover background effect */}
+      <motion.div
+        className={cn(
+          "absolute inset-0 rounded-xl bg-sidebar-accent opacity-0 group-hover/sidebar:opacity-100",
+          "transition-opacity duration-300 ease-out",
+          active && "hidden"
+        )}
+        initial={false}
+      />
+      
+      {/* Glow effect on hover */}
+      <motion.div
+        className={cn(
+          "absolute inset-0 rounded-xl opacity-0 group-hover/sidebar:opacity-100",
+          "bg-gradient-to-r from-primary/10 via-primary/5 to-transparent",
+          "transition-opacity duration-500 ease-out",
+          active && "hidden"
+        )}
+        initial={false}
+      />
+      
+      {/* Icon with animation */}
+      <motion.span 
+        className={cn(
+          "flex-shrink-0 relative z-10",
+          "transition-all duration-300 ease-out",
+          active && "scale-110"
+        )}
+        whileHover={{ scale: active ? 1.1 : 1.15, rotate: active ? 0 : 3 }}
+        transition={{ type: "spring", stiffness: 400, damping: 17 }}
+      >
         {link.icon}
-      </span>
+      </motion.span>
+      
+      {/* Label with slide animation */}
       <motion.span
         animate={{
           display: animate ? (open ? "inline-block" : "none") : "inline-block",
           opacity: animate ? (open ? 1 : 0) : 1,
         }}
         transition={{ duration: 0.2 }}
-        className="text-sm font-medium group-hover/sidebar:translate-x-1 transition duration-150 whitespace-pre inline-block !p-0 !m-0"
+        className={cn(
+          "text-sm font-medium relative z-10 whitespace-pre inline-block !p-0 !m-0",
+          "transition-transform duration-300 ease-out",
+          "group-hover/sidebar:translate-x-1"
+        )}
       >
         {link.label}
       </motion.span>
