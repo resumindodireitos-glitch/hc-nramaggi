@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-webhook-secret",
 };
 
 interface GoogleFormsPayload {
@@ -13,9 +13,8 @@ interface GoogleFormsPayload {
   responses: Record<string, string | string[]>;
   respondent_email?: string;
   timestamp: string;
-  // Mapped fields for our system
   mapping?: {
-    form_uuid?: string; // Our internal form UUID
+    form_uuid?: string;
     nome_field?: string;
     setor_field?: string;
     cargo_field?: string;
@@ -31,7 +30,7 @@ serve(async (req) => {
   try {
     const payload = await req.json() as GoogleFormsPayload;
     
-    console.log("Google Forms webhook received:", JSON.stringify(payload, null, 2));
+    console.log("Google Forms webhook received for form_id:", payload.form_id);
 
     // Validate required fields
     if (!payload.form_id || !payload.responses) {
@@ -45,17 +44,45 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Try to find the form mapping in system_settings
+    // Check webhook configuration and validate secret
+    const { data: webhookConfig } = await supabase
+      .from("webhook_configurations")
+      .select("secret_key, is_active, internal_form_id, field_mapping")
+      .eq("external_form_id", payload.form_id)
+      .eq("provider", "google")
+      .maybeSingle();
+
+    // Validate webhook secret if configured
+    if (webhookConfig?.secret_key) {
+      const providedSecret = req.headers.get("X-Webhook-Secret");
+      if (!providedSecret || providedSecret !== webhookConfig.secret_key) {
+        console.warn("Webhook authentication failed for form_id:", payload.form_id);
+        return new Response(
+          JSON.stringify({ error: "Unauthorized: Invalid or missing webhook secret" }),
+          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+
+    // Check if webhook is active
+    if (webhookConfig && !webhookConfig.is_active) {
+      return new Response(
+        JSON.stringify({ error: "Webhook is disabled" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Try to find the form mapping in system_settings (legacy support)
     const { data: mappingData } = await supabase
       .from("system_settings")
       .select("value")
       .eq("key", `GOOGLE_FORM_MAPPING_${payload.form_id}`)
       .maybeSingle();
 
-    let formUuid: string | null = null;
-    let fieldMapping: Record<string, string> = {};
+    let formUuid: string | null = webhookConfig?.internal_form_id || null;
+    let fieldMapping: Record<string, string> = webhookConfig?.field_mapping as Record<string, string> || {};
 
-    if (mappingData?.value) {
+    if (!formUuid && mappingData?.value) {
       try {
         const mapping = JSON.parse(mappingData.value);
         formUuid = mapping.form_uuid;
@@ -155,6 +182,18 @@ serve(async (req) => {
 
     console.log("Submission created:", submission.id);
 
+    // Update webhook stats
+    if (webhookConfig) {
+      await supabase
+        .from("webhook_configurations")
+        .update({
+          last_received_at: new Date().toISOString(),
+          total_submissions: (webhookConfig as any).total_submissions ? (webhookConfig as any).total_submissions + 1 : 1,
+        })
+        .eq("external_form_id", payload.form_id)
+        .eq("provider", "google");
+    }
+
     // Log the webhook event
     await supabase.from("audit_log").insert({
       action: "webhook_google_forms",
@@ -164,6 +203,7 @@ serve(async (req) => {
         external_form_id: payload.form_id,
         external_response_id: payload.response_id,
         timestamp: payload.timestamp,
+        authenticated: !!webhookConfig?.secret_key,
       },
     });
 

@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-webhook-secret",
 };
 
 interface MicrosoftFormsPayload {
@@ -13,12 +13,10 @@ interface MicrosoftFormsPayload {
   answers: Record<string, string | string[]>;
   respondentEmail?: string;
   submittedAt: string;
-  // Power Automate specific fields
   resourceData?: {
     formId?: string;
     responseId?: string;
   };
-  // Field mapping for our system
   mapping?: {
     formUuid?: string;
     nomeField?: string;
@@ -36,12 +34,12 @@ serve(async (req) => {
   try {
     const payload = await req.json() as MicrosoftFormsPayload;
     
-    console.log("Microsoft Forms webhook received:", JSON.stringify(payload, null, 2));
-
     // Support Power Automate format
     const formId = payload.formId || payload.resourceData?.formId;
     const responseId = payload.responseId || payload.resourceData?.responseId;
     const answers = payload.answers || {};
+
+    console.log("Microsoft Forms webhook received for form_id:", formId);
 
     if (!formId) {
       return new Response(
@@ -54,17 +52,45 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Try to find the form mapping in system_settings
+    // Check webhook configuration and validate secret
+    const { data: webhookConfig } = await supabase
+      .from("webhook_configurations")
+      .select("secret_key, is_active, internal_form_id, field_mapping")
+      .eq("external_form_id", formId)
+      .eq("provider", "microsoft")
+      .maybeSingle();
+
+    // Validate webhook secret if configured
+    if (webhookConfig?.secret_key) {
+      const providedSecret = req.headers.get("X-Webhook-Secret");
+      if (!providedSecret || providedSecret !== webhookConfig.secret_key) {
+        console.warn("Webhook authentication failed for form_id:", formId);
+        return new Response(
+          JSON.stringify({ error: "Unauthorized: Invalid or missing webhook secret" }),
+          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+
+    // Check if webhook is active
+    if (webhookConfig && !webhookConfig.is_active) {
+      return new Response(
+        JSON.stringify({ error: "Webhook is disabled" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Try to find the form mapping in system_settings (legacy support)
     const { data: mappingData } = await supabase
       .from("system_settings")
       .select("value")
       .eq("key", `MS_FORM_MAPPING_${formId}`)
       .maybeSingle();
 
-    let formUuid: string | null = null;
-    let fieldMapping: Record<string, string> = {};
+    let formUuid: string | null = webhookConfig?.internal_form_id || null;
+    let fieldMapping: Record<string, string> = webhookConfig?.field_mapping as Record<string, string> || {};
 
-    if (mappingData?.value) {
+    if (!formUuid && mappingData?.value) {
       try {
         const mapping = JSON.parse(mappingData.value);
         formUuid = mapping.form_uuid;
@@ -163,6 +189,18 @@ serve(async (req) => {
 
     console.log("Submission created:", submission.id);
 
+    // Update webhook stats
+    if (webhookConfig) {
+      await supabase
+        .from("webhook_configurations")
+        .update({
+          last_received_at: new Date().toISOString(),
+          total_submissions: (webhookConfig as any).total_submissions ? (webhookConfig as any).total_submissions + 1 : 1,
+        })
+        .eq("external_form_id", formId)
+        .eq("provider", "microsoft");
+    }
+
     // Log the webhook event
     await supabase.from("audit_log").insert({
       action: "webhook_microsoft_forms",
@@ -172,6 +210,7 @@ serve(async (req) => {
         external_form_id: formId,
         external_response_id: responseId,
         submitted_at: payload.submittedAt,
+        authenticated: !!webhookConfig?.secret_key,
       },
     });
 
