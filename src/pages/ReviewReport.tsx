@@ -17,6 +17,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { AETReportPreview } from "@/components/reports/AETReportPreview";
 import { UniversalScoreChart } from "@/components/reports/UniversalScoreChart";
 import { TanguroReportTemplate } from "@/components/reports/TanguroReportTemplate";
+import { DimensionScoreChart, GlobalScoreDisplay } from "@/components/reports/DimensionScoreChart";
 import { mapReportToTanguroFormat } from "@/lib/tanguroDataMapper";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -138,15 +139,31 @@ export default function ReviewReport() {
   }, [id, isAdmin]);
 
   const fetchReport = async () => {
+    if (!id) {
+      toast.error("ID do relatório não encontrado");
+      navigate("/reports");
+      return;
+    }
+    
     try {
       // Fetch report with related data
       const { data, error } = await supabase
         .from("reports")
         .select("*, submissions(*, forms(*))")
         .eq("id", id)
-        .single();
+        .maybeSingle();
 
-      if (error) throw error;
+      if (error) {
+        console.error("Supabase error:", error);
+        throw error;
+      }
+      
+      if (!data) {
+        toast.error("Relatório não encontrado");
+        navigate("/reports");
+        return;
+      }
+      
       const reportData = data as ReportWithDetails;
       setReport(reportData);
       

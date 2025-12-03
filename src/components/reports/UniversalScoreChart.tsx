@@ -221,37 +221,43 @@ export function UniversalScoreChart({
 
   return (
     <div className={`space-y-4 ${compact ? "" : "space-y-6"}`}>
-      {/* Global Score Card */}
-      <Card className="border-0 shadow-sm bg-gradient-to-br from-card to-muted/20">
-        <CardHeader className="pb-2">
-          <CardTitle className="flex items-center justify-between text-base">
-            <div className="flex items-center gap-2">
-              <div className="p-2 rounded-lg bg-primary/10">
-                <Target className="h-4 w-4 text-primary" />
+      {/* Global Score Card - Matching reference image design */}
+      <Card className="border-0 shadow-sm overflow-hidden">
+        <CardContent className="p-6">
+          <div className="flex items-start justify-between">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <div className="h-3 w-3 rounded-full bg-primary animate-pulse" />
+                <span className="text-sm font-medium text-muted-foreground">Pontuação Global</span>
               </div>
-              Pontuação Global
+              <div className="flex items-baseline gap-1">
+                <span className={`text-5xl font-bold ${
+                  normalizedData.risk_color === 'green' ? 'text-emerald-600' :
+                  normalizedData.risk_color === 'yellow' ? 'text-amber-600' :
+                  normalizedData.risk_color === 'red' ? 'text-red-600' : 'text-foreground'
+                }`}>
+                  {normalizedData.global_score}
+                </span>
+                <span className="text-xl text-muted-foreground">/100</span>
+              </div>
+              {normalizedData.risk_description && (
+                <p className="text-sm text-muted-foreground max-w-[220px]">
+                  {normalizedData.risk_description}
+                </p>
+              )}
             </div>
-            <Badge variant="outline" className={`${getRiskBadgeClass()} px-3 py-1 gap-2`}>
+            <Badge 
+              className={`px-4 py-2 text-sm font-semibold border-2 ${
+                normalizedData.risk_color === 'green' 
+                  ? 'bg-emerald-100 border-emerald-400 text-emerald-700' :
+                normalizedData.risk_color === 'yellow' 
+                  ? 'bg-amber-100 border-amber-400 text-amber-700' :
+                'bg-red-100 border-red-400 text-red-700'
+              }`}
+            >
               {getRiskIcon()}
-              {normalizedData.risk_label}
+              <span className="ml-1.5">{normalizedData.risk_label}</span>
             </Badge>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            <div className="flex items-end gap-2">
-              <span className="text-4xl font-bold">{normalizedData.global_score}</span>
-              <span className="text-muted-foreground mb-1">/100</span>
-            </div>
-            <Progress 
-              value={normalizedData.global_score} 
-              className="h-2"
-            />
-            {normalizedData.risk_description && (
-              <p className="text-sm text-muted-foreground">
-                {normalizedData.risk_description}
-              </p>
-            )}
           </div>
         </CardContent>
       </Card>
@@ -381,7 +387,7 @@ export function UniversalScoreChart({
         </Card>
       )}
 
-      {/* Dimensions List */}
+      {/* Dimensions List - Horizontal Bars like reference image */}
       <Card className="border-0 shadow-sm">
         <CardHeader className="pb-2">
           <CardTitle className="text-base">Detalhamento por Dimensão</CardTitle>
@@ -389,26 +395,51 @@ export function UniversalScoreChart({
         <CardContent>
           <div className="space-y-3">
             {normalizedData.dimensions && normalizedData.dimensions.length > 0 ? (
-              normalizedData.dimensions.map((dim) => (
-                <div key={dim.name} className="space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">{dim.name}</span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm">{dim.normalized_score?.toFixed(1) || dim.score}%</span>
-                      <Badge 
-                        variant="outline" 
-                        className={`text-xs ${STATUS_COLORS[dim.status] || ""}`}
-                      >
-                        {dim.status}
-                      </Badge>
+              normalizedData.dimensions.map((dim) => {
+                const scoreValue = dim.normalized_score ?? dim.score ?? 0;
+                const barWidth = Math.min(100, Math.max(0, scoreValue));
+                
+                const getBarColor = () => {
+                  if (dim.color === 'green' || dim.status === 'Adequado' || dim.status === 'Satisfatório') 
+                    return 'bg-emerald-500';
+                  if (dim.color === 'yellow' || dim.status === 'Atenção' || dim.status === 'Aceitável') 
+                    return 'bg-amber-400';
+                  return 'bg-red-500';
+                };
+                
+                const getBadgeStyle = () => {
+                  if (dim.color === 'green' || dim.status === 'Adequado' || dim.status === 'Satisfatório')
+                    return 'bg-emerald-100 text-emerald-700 border-emerald-300';
+                  if (dim.color === 'yellow' || dim.status === 'Atenção' || dim.status === 'Aceitável')
+                    return 'bg-amber-100 text-amber-700 border-amber-300';
+                  return 'bg-red-100 text-red-700 border-red-300';
+                };
+                
+                return (
+                  <div key={dim.name} className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-foreground">{dim.name}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-semibold text-muted-foreground">
+                          {scoreValue.toFixed(1)}%
+                        </span>
+                        <Badge 
+                          variant="outline" 
+                          className={`text-xs px-2 py-0.5 border ${getBadgeStyle()}`}
+                        >
+                          {dim.status}
+                        </Badge>
+                      </div>
+                    </div>
+                    <div className="h-4 w-full bg-muted rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all duration-500 ${getBarColor()}`}
+                        style={{ width: `${barWidth}%` }}
+                      />
                     </div>
                   </div>
-                  <Progress 
-                    value={dim.normalized_score || dim.score} 
-                    className="h-1.5"
-                  />
-                </div>
-              ))
+                );
+              })
             ) : (
               <p className="text-sm text-muted-foreground">Nenhuma dimensão disponível</p>
             )}

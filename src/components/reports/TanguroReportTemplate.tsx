@@ -370,17 +370,29 @@ export function TanguroReportTemplate({ data }: TanguroReportTemplateProps) {
       <div className="p-8 border-t-4 border-blue-700 page-break-before">
         <PageHeader title="AVALIAÇÃO QUANTITATIVA" pageNum={5} />
 
-        {/* Global Score */}
-        <div className="mt-6 flex items-center justify-between bg-gray-100 p-4 rounded-lg">
-          <div>
-            <p className="text-sm text-gray-600">Score Global</p>
-            <p className="text-4xl font-bold text-blue-800">{data.globalScore}</p>
-          </div>
-          <div className="text-right">
-            <p className="text-sm text-gray-600">Classificação</p>
-            <Badge className={`${getRiskBadgeColor(data.riskColor)} px-4 py-2 text-lg font-bold border`}>
-              {data.riskLabel}
-            </Badge>
+        {/* Global Score - Matching the image design */}
+        <div className="mt-6 p-6 rounded-xl bg-gradient-to-r from-slate-50 to-blue-50 border border-slate-200">
+          <div className="flex items-start justify-between">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <div className="h-3 w-3 rounded-full bg-blue-600 animate-pulse" />
+                <span className="text-sm font-medium text-slate-600">Pontuação Global</span>
+              </div>
+              <div className="flex items-baseline gap-1">
+                <span className="text-5xl font-bold text-slate-800">{data.globalScore}</span>
+                <span className="text-xl text-slate-400">/100</span>
+              </div>
+              <p className="text-sm text-slate-500 max-w-xs">
+                {data.riskDescription || `Carga mental ${data.riskLabel?.toLowerCase()}, requer atenção`}
+              </p>
+            </div>
+            <div className={`px-4 py-2 rounded-full border-2 font-semibold text-sm ${
+              data.riskColor === 'green' ? 'bg-emerald-100 border-emerald-400 text-emerald-700' :
+              data.riskColor === 'yellow' ? 'bg-amber-100 border-amber-400 text-amber-700' :
+              'bg-red-100 border-red-400 text-red-700'
+            }`}>
+              ↗ {data.riskLabel}
+            </div>
           </div>
         </div>
 
@@ -410,40 +422,46 @@ export function TanguroReportTemplate({ data }: TanguroReportTemplateProps) {
           </div>
         )}
 
-        {/* Dimensions Table */}
-        <div className="mt-6">
-          <h3 className="font-bold text-blue-800 mb-3">Pontuação por Dimensão</h3>
-          <table className="w-full border-collapse text-sm">
-            <thead>
-              <tr className="bg-blue-800 text-white">
-                <th className="border border-blue-900 p-2 text-left">Dimensão</th>
-                <th className="border border-blue-900 p-2 text-center w-20">Score</th>
-                <th className="border border-blue-900 p-2 text-center w-40">Gráfico</th>
-                <th className="border border-blue-900 p-2 text-center w-24">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.dimensions.map((dim, idx) => (
-                <tr key={idx} className={idx % 2 === 0 ? "bg-white" : "bg-gray-50"}>
-                  <td className="border p-2">{dim.name}</td>
-                  <td className="border p-2 text-center font-bold">{dim.score}</td>
-                  <td className="border p-2">
-                    <div className="bg-gray-200 rounded-full h-4 overflow-hidden">
-                      <div
-                        className={`h-full ${getScoreBarColor(dim.color)}`}
-                        style={{ width: `${(dim.score / 10) * 100}%` }}
-                      />
+        {/* Dimensions - Horizontal Bar Chart like the image */}
+        <div className="mt-8">
+          <h3 className="font-bold text-slate-700 mb-4">Detalhamento por Dimensão</h3>
+          <div className="space-y-3">
+            {data.dimensions.map((dim, idx) => {
+              const scoreValue = dim.normalized_score ?? dim.score;
+              const displayPercent = typeof scoreValue === 'number' ? scoreValue : 0;
+              const barWidth = Math.min(100, Math.max(0, displayPercent));
+              
+              return (
+                <div key={idx} className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-slate-700">{dim.name}</span>
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-semibold text-slate-600">
+                        {displayPercent.toFixed(1)}%
+                      </span>
+                      <span className={`px-3 py-0.5 rounded-full text-xs font-medium border ${
+                        dim.color === 'green' ? 'bg-emerald-100 text-emerald-700 border-emerald-300' :
+                        dim.color === 'yellow' ? 'bg-amber-100 text-amber-700 border-amber-300' :
+                        'bg-red-100 text-red-700 border-red-300'
+                      }`}>
+                        {dim.status}
+                      </span>
                     </div>
-                  </td>
-                  <td className="border p-2 text-center">
-                    <span className={`px-2 py-0.5 rounded text-xs font-medium ${getRiskBadgeColor(dim.color)}`}>
-                      {dim.status}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                  </div>
+                  <div className="h-4 w-full bg-slate-200 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-500 ${
+                        dim.color === 'green' ? 'bg-emerald-500' :
+                        dim.color === 'yellow' ? 'bg-amber-400' :
+                        'bg-red-500'
+                      }`}
+                      style={{ width: `${barWidth}%` }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
 
