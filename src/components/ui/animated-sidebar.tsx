@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 import { Link, LinkProps } from "react-router-dom";
 import React, { useState, createContext, useContext } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Menu, X } from "lucide-react";
+import { Menu, X, ChevronLeft, ChevronRight } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -101,13 +101,16 @@ export const SidebarBody = ({
 export const DesktopSidebar = ({
   className,
   children,
-  ...props
-}: React.ComponentProps<typeof motion.div>) => {
+}: {
+  className?: string;
+  children: React.ReactNode;
+}) => {
   const { open, setOpen, animate } = useSidebar();
+  
   return (
     <motion.div
       className={cn(
-        "h-screen py-4 hidden md:flex md:flex-col flex-shrink-0 sticky top-0",
+        "h-screen py-4 hidden md:flex md:flex-col flex-shrink-0 sticky top-0 relative",
         open ? "px-4" : "px-2",
         className
       )}
@@ -115,11 +118,27 @@ export const DesktopSidebar = ({
         width: animate ? (open ? "280px" : "60px") : "280px",
       }}
       transition={{ duration: 0.3, ease: "easeInOut" }}
-      onMouseEnter={() => setOpen(true)}
-      onMouseLeave={() => setOpen(false)}
-      {...props}
     >
       {children}
+      
+      {/* Toggle Button */}
+      <button
+        onClick={() => setOpen(!open)}
+        className={cn(
+          "absolute -right-3 top-1/2 -translate-y-1/2 z-50",
+          "w-6 h-6 rounded-full bg-primary text-primary-foreground",
+          "flex items-center justify-center shadow-lg",
+          "hover:bg-primary/90 transition-colors",
+          "border-2 border-background"
+        )}
+        aria-label={open ? "Recolher sidebar" : "Expandir sidebar"}
+      >
+        {open ? (
+          <ChevronLeft className="h-4 w-4" />
+        ) : (
+          <ChevronRight className="h-4 w-4" />
+        )}
+      </button>
     </motion.div>
   );
 };

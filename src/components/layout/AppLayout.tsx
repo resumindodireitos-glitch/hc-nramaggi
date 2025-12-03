@@ -46,6 +46,7 @@ interface NavItem {
   label: string;
   href: string;
   icon: React.ReactNode;
+  adminOnly?: boolean;
 }
 
 interface NavGroup {
@@ -72,6 +73,7 @@ const navGroups: NavGroup[] = [
     items: [
       { label: "Formulários", href: "/forms", icon: <ClipboardList className="h-5 w-5" /> },
       { label: "Minhas Submissões", href: "/submissions", icon: <FileText className="h-5 w-5" /> },
+      { label: "Gerenciar Forms", href: "/admin/forms", icon: <Settings className="h-5 w-5" />, adminOnly: true },
     ],
   },
   {
@@ -113,7 +115,6 @@ const navGroups: NavGroup[] = [
     icon: <Cog className="h-4 w-4" />,
     adminOnly: true,
     items: [
-      { label: "Gerenciar Forms", href: "/admin/forms", icon: <Settings className="h-5 w-5" /> },
       { label: "Webhooks", href: "/admin/webhooks", icon: <Activity className="h-5 w-5" /> },
       { label: "Config. Sistema", href: "/admin/settings", icon: <Settings className="h-5 w-5" /> },
     ],
@@ -167,9 +168,13 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
     setExpandedGroups(prev => ({ ...prev, [groupId]: !prev[groupId] }));
   };
 
-  const filteredGroups = navGroups.filter(
-    (group) => !group.adminOnly || isAdmin
-  );
+  // Filter groups and items based on admin status
+  const filteredGroups = navGroups
+    .filter((group) => !group.adminOnly || isAdmin)
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) => !item.adminOnly || isAdmin),
+    }));
 
   return (
     <div className="flex flex-col h-full">
@@ -298,7 +303,16 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
 }
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
-  const [open, setOpen] = useState(false);
+  // Load sidebar state from localStorage
+  const [open, setOpen] = useState(() => {
+    const saved = localStorage.getItem("sidebar-open");
+    return saved ? JSON.parse(saved) : true;
+  });
+
+  // Save sidebar state when it changes
+  useEffect(() => {
+    localStorage.setItem("sidebar-open", JSON.stringify(open));
+  }, [open]);
 
   return (
     <div className="h-screen flex w-full bg-background overflow-hidden">
