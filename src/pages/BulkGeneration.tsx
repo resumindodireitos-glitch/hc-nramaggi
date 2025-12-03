@@ -9,6 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { printHtmlAsPdf } from "@/lib/pdfUtils";
 import {
   Loader2,
   Download,
@@ -117,20 +118,21 @@ export default function BulkGeneration() {
 
           if (error) throw error;
 
-          // Open HTML in new tab
+          // Open HTML with print dialog
           const html = atob(data.pdf);
-          const blob = new Blob([html], { type: "text/html" });
-          const url = URL.createObjectURL(blob);
-          window.open(url, "_blank");
+          printHtmlAsPdf(html, `AET_${respondentName.replace(/\s+/g, "_")}`);
           
           // Small delay between opening tabs
-          await new Promise(resolve => setTimeout(resolve, 500));
+          await new Promise(resolve => setTimeout(resolve, 1000));
         } catch (err) {
           console.error(`Error generating PDF for ${report.id}:`, err);
         }
       }
 
-      toast.success(`${selectedReports.length} PDFs gerados! Use Ctrl+P em cada aba para imprimir.`);
+      toast.success(`${selectedReports.length} PDFs gerados!`, {
+        description: "Selecione 'Salvar como PDF' no diálogo de impressão de cada aba",
+        duration: 6000,
+      });
       setSelectedIds(new Set());
     } catch (error) {
       console.error("Error in bulk generation:", error);

@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { AETReportPreview } from "@/components/reports/AETReportPreview";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { printHtmlAsPdf } from "@/lib/pdfUtils";
 import {
   ArrowLeft,
   Loader2,
@@ -187,17 +188,16 @@ export default function ReviewReport() {
       if (error) throw error;
 
       const html = atob(data.pdf);
-      const blob = new Blob([html], { type: "text/html" });
-      const url = URL.createObjectURL(blob);
-      const printWindow = window.open(url, "_blank");
+      const respondentName = (report.submissions?.respondent_data as Record<string, string>)?.nome || "Relatorio";
+      const jobTitle = (report.submissions?.respondent_data as Record<string, string>)?.cargo || "";
+      const filename = `AET_${jobTitle}_${respondentName}`.replace(/\s+/g, "_");
       
-      if (printWindow) {
-        printWindow.onload = () => {
-          printWindow.print();
-        };
-      }
-
-      toast.success("PDF gerado! Use Ctrl+P para imprimir.");
+      printHtmlAsPdf(html, filename);
+      
+      toast.success("PDF aberto! Selecione 'Salvar como PDF' no diálogo de impressão.", {
+        description: "Dica: Use Ctrl+P ou ⌘+P para abrir a impressão novamente",
+        duration: 6000,
+      });
     } catch (error) {
       console.error("Error generating PDF:", error);
       toast.error("Erro ao gerar PDF");
