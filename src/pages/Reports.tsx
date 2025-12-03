@@ -237,11 +237,14 @@ export default function Reports() {
     const report = submission.reports;
 
     return (
-      <Card className="animate-fade-in" style={{ animationDelay: `${index * 50}ms` }}>
+      <Card 
+        className="group hover:shadow-lg hover:shadow-primary/5 hover:-translate-y-0.5 animate-fade-in-up" 
+        style={{ animationDelay: `${index * 50}ms`, animationFillMode: 'backwards' }}
+      >
         <CardContent className="p-6">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
             <div className="flex items-start gap-4">
-              <div className="p-3 rounded-lg bg-primary/10">
+              <div className="p-3 rounded-xl bg-primary/10 group-hover:scale-110 transition-transform duration-300">
                 <BarChart3 className="h-6 w-6 text-primary" />
               </div>
               <div>
@@ -353,8 +356,13 @@ export default function Reports() {
   if (loading) {
     return (
       <AppLayout>
-        <div className="flex items-center justify-center h-64">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <div className="flex flex-col items-center justify-center h-64 gap-4">
+          <div className="relative">
+            <div className="w-16 h-16 rounded-2xl gradient-primary flex items-center justify-center animate-pulse">
+              <BarChart3 className="h-8 w-8 text-primary-foreground" />
+            </div>
+          </div>
+          <p className="text-muted-foreground animate-pulse">Carregando relatórios...</p>
         </div>
       </AppLayout>
     );
@@ -363,11 +371,16 @@ export default function Reports() {
   return (
     <AppLayout>
       <div className="space-y-6">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 animate-fade-in-down">
           <div>
-            <h1 className="text-3xl font-bold text-foreground">Relatórios</h1>
-            <p className="text-muted-foreground mt-1">
-              Gerencie e aprove relatórios de análise
+            <div className="flex items-center gap-3 mb-1">
+              <div className="p-2.5 rounded-xl bg-primary/10">
+                <BarChart3 className="h-6 w-6 text-primary" />
+              </div>
+              <h1 className="text-2xl sm:text-3xl font-display font-bold text-foreground">Relatórios</h1>
+            </div>
+            <p className="text-muted-foreground">
+              Gerencie e aprove relatórios de análise ergonômica
             </p>
           </div>
           <div className="flex items-center gap-2">
