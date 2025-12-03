@@ -32,6 +32,7 @@ const AI_ENDPOINTS = {
   openai: "https://api.openai.com/v1/chat/completions",
   anthropic: "https://api.anthropic.com/v1/messages",
   deepseek: "https://api.deepseek.com/v1/chat/completions",
+  google: "https://generativelanguage.googleapis.com/v1beta/models",
 };
 
 async function generateEmbedding(text: string, apiKey: string): Promise<number[]> {
@@ -176,6 +177,37 @@ async function callDeepSeek(systemPrompt: string, userPrompt: string, model: str
   return data.choices?.[0]?.message?.content;
 }
 
+async function callGoogleGemini(systemPrompt: string, userPrompt: string, model: string, apiKey: string) {
+  const modelName = model.includes("/") ? model.split("/")[1] : model;
+  const url = `${AI_ENDPOINTS.google}/${modelName}:generateContent?key=${apiKey}`;
+  
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      contents: [
+        {
+          role: "user",
+          parts: [{ text: `${systemPrompt}\n\n${userPrompt}` }]
+        }
+      ],
+      generationConfig: {
+        temperature: 0.7,
+        maxOutputTokens: 4000,
+      }
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error("Google Gemini error:", response.status, errorText);
+    throw new Error(`Google Gemini error: ${response.status}`);
+  }
+  
+  const data = await response.json();
+  return data.candidates?.[0]?.content?.parts?.[0]?.text;
+}
+
 function generateFallbackAnalysis(formType: string, answers: Record<string, any>) {
   const dimensionsScore: Record<string, { score: number; risk_color: string }> = {};
   let totalScore = 0;
@@ -301,7 +333,7 @@ serve(async (req) => {
     const { data: settingsData } = await supabase
       .from("system_settings")
       .select("key, value")
-      .in("key", ["OPENAI_API_KEY", "ANTHROPIC_API_KEY", "DEEPSEEK_API_KEY"]);
+      .in("key", ["OPENAI_API_KEY", "ANTHROPIC_API_KEY", "DEEPSEEK_API_KEY", "GOOGLE_API_KEY"]);
 
     const apiKeys: Record<string, string> = {};
     settingsData?.forEach(s => { if (s.value) apiKeys[s.key] = s.value; });
@@ -366,6 +398,13 @@ Analise e gere o relatório técnico em JSON.`;
         case "deepseek":
           if (apiKeys["DEEPSEEK_API_KEY"]) {
             aiContent = await callDeepSeek(systemPrompt, userPrompt, modelToUse, apiKeys["DEEPSEEK_API_KEY"]);
+          } else if (lovableApiKey) {
+            aiContent = await callLovableAI(systemPrompt, userPrompt, "google/gemini-2.5-flash", lovableApiKey);
+          }
+          break;
+        case "google":
+          if (apiKeys["GOOGLE_API_KEY"]) {
+            aiContent = await callGoogleGemini(systemPrompt, userPrompt, modelToUse, apiKeys["GOOGLE_API_KEY"]);
           } else if (lovableApiKey) {
             aiContent = await callLovableAI(systemPrompt, userPrompt, "google/gemini-2.5-flash", lovableApiKey);
           }
