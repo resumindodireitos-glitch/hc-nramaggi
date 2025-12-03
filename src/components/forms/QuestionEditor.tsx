@@ -9,7 +9,7 @@ import { Trash2, ChevronUp, ChevronDown, GripVertical, Plus, X } from "lucide-re
 
 export interface FormQuestion {
   id: string;
-  type: "text" | "textarea" | "radio" | "checkbox" | "scale" | "select" | "slider";
+  type: "text" | "textarea" | "radio" | "checkbox" | "scale" | "select" | "slider" | "info";
   label: string;
   description?: string;
   required?: boolean;

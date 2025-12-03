@@ -12,135 +12,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { Loader2, Plus, Save, ArrowLeft, Copy, Eye } from "lucide-react";
-import { QuestionEditor, FormQuestion } from "@/components/forms/QuestionEditor";
+import { QuestionEditor, type FormQuestion } from "@/components/forms/QuestionEditor";
 import { FormPreview } from "@/components/forms/FormPreview";
 import type { Json } from "@/integrations/supabase/types";
+import { ADM_TEMPLATE, OP_TEMPLATE } from "@/lib/formTemplates";
 
 type FormType = "ergos" | "hse_it";
-
-// ERGOS Template - Metodologia de Avaliação de Carga Mental (ENSIDESA 1989)
-// Pontuação: 0, 2, 4 por item. Fórmula: 0,83 × (A + B)
-// Interpretação: 0-30 (Satisfatório), 31-60 (Aceitável), 61-100 (Devem Melhorar)
-const ERGOS_TEMPLATE: FormQuestion[] = [
-  // Bloco A - Fatores Cognitivos
-  { id: "pressao_tempo", type: "radio", label: "Pressão de Tempo", description: "Avalie pausas e ritmo de trabalho conforme exigências da atividade", required: true, options: [
-    "0 - Não há pressão significativa de tempo",
-    "2 - Pressão moderada em alguns momentos",
-    "4 - Pressão constante e intensa de tempo"
-  ]},
-  { id: "atencao", type: "radio", label: "Atenção", description: "Avalie demandas perceptivas, atenção e trabalhos minuciosos", required: true, options: [
-    "0 - Atenção básica, sem exigência de precisão",
-    "2 - Atenção moderada com alguma precisão",
-    "4 - Alta concentração e trabalho minucioso constante"
-  ]},
-  { id: "complexidade", type: "radio", label: "Complexidade", description: "Avalie a complexidade das tarefas realizadas", required: true, options: [
-    "0 - Tarefas simples e rotineiras",
-    "2 - Tarefas de complexidade moderada",
-    "4 - Tarefas altamente complexas e variadas"
-  ]},
-  { id: "monotonia", type: "radio", label: "Monotonia", description: "Avalie se possui trabalhos repetitivos e variações", required: true, options: [
-    "0 - Atividades variadas e estimulantes",
-    "2 - Alguma repetitividade nas tarefas",
-    "4 - Alta repetitividade e baixa variação"
-  ]},
-  { id: "raciocinio", type: "radio", label: "Raciocínio e Processos Centrais", description: "Avalie exigência de raciocínio e decisões no trabalho", required: true, options: [
-    "0 - Decisões simples e previsíveis",
-    "2 - Necessidade moderada de raciocínio",
-    "4 - Tomada de decisões complexas frequente"
-  ]},
-  // Bloco B - Fatores Organizacionais
-  { id: "iniciativa", type: "radio", label: "Iniciativa", description: "Avalie iniciativa própria e autonomia nas operações", required: true, options: [
-    "0 - Total autonomia nas decisões do trabalho",
-    "2 - Autonomia parcial com supervisão",
-    "4 - Pouca ou nenhuma autonomia"
-  ]},
-  { id: "isolamento", type: "radio", label: "Isolamento", description: "Avalie apoio de colegas durante atividade laboral", required: true, options: [
-    "0 - Trabalho em equipe constante",
-    "2 - Contato ocasional com colegas",
-    "4 - Trabalho isolado na maior parte do tempo"
-  ]},
-  { id: "horarios_turnos", type: "radio", label: "Horários e Turnos de Trabalho", description: "Avalie horários de trabalho e necessidade de horas extras", required: true, options: [
-    "0 - Horário regular sem horas extras",
-    "2 - Horas extras ocasionais",
-    "4 - Turnos irregulares ou horas extras frequentes"
-  ]},
-  { id: "relacionamentos", type: "radio", label: "Relacionamentos no Trabalho", description: "Avalie trabalho em equipe e relacionamento com terceiros", required: true, options: [
-    "0 - Relacionamentos harmoniosos",
-    "2 - Relacionamentos profissionais adequados",
-    "4 - Dificuldades de relacionamento ou conflitos"
-  ]},
-  { id: "demandas_gerais", type: "radio", label: "Demandas Gerais", description: "Avalie supervisão e responsabilidades sobre pessoas ou instalações", required: true, options: [
-    "0 - Sem responsabilidades de supervisão",
-    "2 - Responsabilidades moderadas",
-    "4 - Alta responsabilidade sobre equipes ou instalações"
-  ]},
-];
-
-// HSE-IT Template - Health Safety Executive Indicator Tool
-// 35 questões em 7 dimensões, escala 1-5 (nunca a sempre)
-const HSE_IT_TEMPLATE: FormQuestion[] = [
-  // Dimensão 1: Demandas
-  { id: "demandas_1", type: "radio", label: "Demandas - Carga de Trabalho", description: "Diferentes grupos no trabalho exigem coisas que são difíceis de combinar", required: true, options: [
-    "1 - Nunca", "2 - Raramente", "3 - Às vezes", "4 - Frequentemente", "5 - Sempre"
-  ]},
-  { id: "demandas_2", type: "radio", label: "Demandas - Prazos", description: "Tenho prazos inalcançáveis", required: true, options: [
-    "1 - Nunca", "2 - Raramente", "3 - Às vezes", "4 - Frequentemente", "5 - Sempre"
-  ]},
-  { id: "demandas_3", type: "radio", label: "Demandas - Ritmo", description: "Tenho que trabalhar muito intensamente", required: true, options: [
-    "1 - Nunca", "2 - Raramente", "3 - Às vezes", "4 - Frequentemente", "5 - Sempre"
-  ]},
-  { id: "demandas_4", type: "radio", label: "Demandas - Negligência", description: "Tenho que negligenciar algumas tarefas porque tenho muito a fazer", required: true, options: [
-    "1 - Nunca", "2 - Raramente", "3 - Às vezes", "4 - Frequentemente", "5 - Sempre"
-  ]},
-  // Dimensão 2: Controle
-  { id: "controle_1", type: "radio", label: "Controle - Decisões", description: "Posso decidir quando fazer uma pausa", required: true, options: [
-    "5 - Nunca", "4 - Raramente", "3 - Às vezes", "2 - Frequentemente", "1 - Sempre"
-  ]},
-  { id: "controle_2", type: "radio", label: "Controle - Métodos", description: "Tenho voz sobre a maneira como faço meu trabalho", required: true, options: [
-    "5 - Nunca", "4 - Raramente", "3 - Às vezes", "2 - Frequentemente", "1 - Sempre"
-  ]},
-  { id: "controle_3", type: "radio", label: "Controle - Ritmo", description: "Tenho alguma escolha sobre o que fazer no trabalho", required: true, options: [
-    "5 - Nunca", "4 - Raramente", "3 - Às vezes", "2 - Frequentemente", "1 - Sempre"
-  ]},
-  // Dimensão 3: Apoio Gerencial
-  { id: "apoio_chefia_1", type: "radio", label: "Apoio Gerencial - Feedback", description: "Recebo feedback sobre o trabalho que faço", required: true, options: [
-    "5 - Nunca", "4 - Raramente", "3 - Às vezes", "2 - Frequentemente", "1 - Sempre"
-  ]},
-  { id: "apoio_chefia_2", type: "radio", label: "Apoio Gerencial - Suporte", description: "Posso contar com meu gerente para me ajudar com um problema de trabalho", required: true, options: [
-    "5 - Nunca", "4 - Raramente", "3 - Às vezes", "2 - Frequentemente", "1 - Sempre"
-  ]},
-  { id: "apoio_chefia_3", type: "radio", label: "Apoio Gerencial - Conversa", description: "Posso conversar com meu gerente sobre algo que me perturbou no trabalho", required: true, options: [
-    "5 - Nunca", "4 - Raramente", "3 - Às vezes", "2 - Frequentemente", "1 - Sempre"
-  ]},
-  // Dimensão 4: Apoio dos Colegas
-  { id: "apoio_colegas_1", type: "radio", label: "Apoio dos Colegas - Respeito", description: "Recebo o respeito que mereço dos colegas", required: true, options: [
-    "5 - Nunca", "4 - Raramente", "3 - Às vezes", "2 - Frequentemente", "1 - Sempre"
-  ]},
-  { id: "apoio_colegas_2", type: "radio", label: "Apoio dos Colegas - Ajuda", description: "Colegas me ajudam quando o trabalho fica difícil", required: true, options: [
-    "5 - Nunca", "4 - Raramente", "3 - Às vezes", "2 - Frequentemente", "1 - Sempre"
-  ]},
-  // Dimensão 5: Relacionamentos
-  { id: "relacionamentos_1", type: "radio", label: "Relacionamentos - Conflitos", description: "Sou pressionado na forma de bullying no trabalho", required: true, options: [
-    "1 - Nunca", "2 - Raramente", "3 - Às vezes", "4 - Frequentemente", "5 - Sempre"
-  ]},
-  { id: "relacionamentos_2", type: "radio", label: "Relacionamentos - Tensão", description: "Existem atritos ou raiva entre colegas", required: true, options: [
-    "1 - Nunca", "2 - Raramente", "3 - Às vezes", "4 - Frequentemente", "5 - Sempre"
-  ]},
-  // Dimensão 6: Cargo
-  { id: "cargo_1", type: "radio", label: "Cargo - Clareza", description: "Tenho clareza sobre o que se espera de mim no trabalho", required: true, options: [
-    "5 - Nunca", "4 - Raramente", "3 - Às vezes", "2 - Frequentemente", "1 - Sempre"
-  ]},
-  { id: "cargo_2", type: "radio", label: "Cargo - Objetivos", description: "Sei o que tenho que fazer para atingir meus objetivos", required: true, options: [
-    "5 - Nunca", "4 - Raramente", "3 - Às vezes", "2 - Frequentemente", "1 - Sempre"
-  ]},
-  // Dimensão 7: Mudanças
-  { id: "mudancas_1", type: "radio", label: "Mudanças - Comunicação", description: "Tenho tempo suficiente para entender as mudanças no trabalho", required: true, options: [
-    "5 - Nunca", "4 - Raramente", "3 - Às vezes", "2 - Frequentemente", "1 - Sempre"
-  ]},
-  { id: "mudancas_2", type: "radio", label: "Mudanças - Consulta", description: "Sou consultado sobre mudanças no trabalho", required: true, options: [
-    "5 - Nunca", "4 - Raramente", "3 - Às vezes", "2 - Frequentemente", "1 - Sempre"
-  ]},
-];
 
 export default function FormBuilder() {
   const { id } = useParams();
@@ -249,10 +126,37 @@ export default function FormBuilder() {
     }
   };
 
-  const loadTemplate = (type: FormType) => {
-    const template = type === "ergos" ? ERGOS_TEMPLATE : HSE_IT_TEMPLATE;
+  const loadTemplate = (templateType: "adm" | "op" | "ergos" | "hse_it") => {
+    let template: FormQuestion[];
+    let name: string;
+    
+    switch (templateType) {
+      case "adm":
+        template = ADM_TEMPLATE;
+        name = "ADM (NASA-TLX + HSE-IT)";
+        setFormType("hse_it");
+        break;
+      case "op":
+        template = OP_TEMPLATE;
+        name = "OP (NASA-TLX + ERGOS)";
+        setFormType("ergos");
+        break;
+      case "ergos":
+        template = OP_TEMPLATE;
+        name = "ERGOS Operacional";
+        setFormType("ergos");
+        break;
+      case "hse_it":
+        template = ADM_TEMPLATE;
+        name = "HSE-IT Administrativo";
+        setFormType("hse_it");
+        break;
+      default:
+        return;
+    }
+    
     setQuestions(template.map(q => ({ ...q, id: `${q.id}_${Date.now()}` })));
-    toast.success(`Template ${type === "ergos" ? "ERGOS" : "HSE-IT"} carregado`);
+    toast.success(`Template ${name} carregado com ${template.length} perguntas`);
   };
 
   const addQuestion = () => {
@@ -388,14 +292,14 @@ export default function FormBuilder() {
                 <Label htmlFor="active">Formulário Ativo</Label>
               </div>
               
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={() => loadTemplate("ergos")}>
+              <div className="flex gap-2 flex-wrap">
+                <Button variant="outline" size="sm" onClick={() => loadTemplate("adm")}>
                   <Copy className="h-4 w-4 mr-2" />
-                  Template ERGOS
+                  ADM Completo
                 </Button>
-                <Button variant="outline" size="sm" onClick={() => loadTemplate("hse_it")}>
+                <Button variant="outline" size="sm" onClick={() => loadTemplate("op")}>
                   <Copy className="h-4 w-4 mr-2" />
-                  Template HSE-IT
+                  OP Completo
                 </Button>
               </div>
             </div>

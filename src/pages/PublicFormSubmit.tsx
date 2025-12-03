@@ -36,7 +36,7 @@ interface FormQuestion {
   id: string;
   label: string;
   description?: string;
-  type: "text" | "textarea" | "radio" | "checkbox" | "scale" | "slider" | "select";
+  type: "text" | "textarea" | "radio" | "checkbox" | "scale" | "slider" | "select" | "info";
   options?: string[];
   required?: boolean;
   min?: number;
@@ -703,6 +703,16 @@ function renderQuestionInput(
             ))}
           </SelectContent>
         </Select>
+      );
+
+    case "info":
+      // Info blocks are just informational - auto-advance or show as read-only
+      return (
+        <div className="p-4 rounded-lg bg-slate-700/30 border border-slate-600">
+          <p className="text-slate-300 leading-relaxed">
+            {question.description || "Continue para a próxima seção."}
+          </p>
+        </div>
       );
 
     default:
