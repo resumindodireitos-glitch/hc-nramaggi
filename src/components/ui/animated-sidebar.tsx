@@ -223,10 +223,13 @@ export const SidebarLabel = ({
   className?: string;
 }) => {
   const { open, animate } = useSidebar();
+  
+  // Don't render anything when sidebar is collapsed
+  if (animate && !open) return null;
+  
   return (
     <motion.p
       animate={{
-        display: animate ? (open ? "block" : "none") : "block",
         opacity: animate ? (open ? 1 : 0) : 1,
       }}
       transition={{ duration: 0.2 }}

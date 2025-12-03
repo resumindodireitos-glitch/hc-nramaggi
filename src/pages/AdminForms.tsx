@@ -28,9 +28,18 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+import { QRCodeSVG } from "qrcode.react";
 import { 
   Plus, 
   Loader2, 
@@ -41,7 +50,10 @@ import {
   ExternalLink,
   ClipboardList,
   ToggleLeft,
-  ToggleRight
+  ToggleRight,
+  QrCode,
+  Download,
+  Link2
 } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -54,6 +66,7 @@ export default function AdminForms() {
   const [forms, setForms] = useState<Form[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [shareForm, setShareForm] = useState<Form | null>(null);
 
   useEffect(() => {
     if (!isAdmin) {
@@ -148,6 +161,34 @@ export default function AdminForms() {
     const link = `${window.location.origin}/forms/${formId}`;
     navigator.clipboard.writeText(link);
     toast.success("Link copiado!");
+  };
+
+  const getFormLink = (formId: string) => {
+    return `${window.location.origin}/forms/${formId}`;
+  };
+
+  const downloadQRCode = (formId: string, formTitle: string) => {
+    const svg = document.getElementById(`qr-${formId}`);
+    if (!svg) return;
+    
+    const svgData = new XMLSerializer().serializeToString(svg);
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    const img = new Image();
+    
+    img.onload = () => {
+      canvas.width = img.width;
+      canvas.height = img.height;
+      ctx?.drawImage(img, 0, 0);
+      const pngFile = canvas.toDataURL("image/png");
+      
+      const downloadLink = document.createElement("a");
+      downloadLink.download = `qrcode-${formTitle.toLowerCase().replace(/\s+/g, '-')}.png`;
+      downloadLink.href = pngFile;
+      downloadLink.click();
+    };
+    
+    img.src = "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(svgData)));
   };
 
   const getFormTypeLabel = (type: string) => {
@@ -271,6 +312,10 @@ export default function AdminForms() {
                                 <ExternalLink className="h-4 w-4 mr-2" />
                                 Copiar Link
                               </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => setShareForm(form)}>
+                                <QrCode className="h-4 w-4 mr-2" />
+                                Link e QR Code
+                              </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => duplicateForm(form)}>
                                 <Copy className="h-4 w-4 mr-2" />
                                 Duplicar
@@ -307,6 +352,80 @@ export default function AdminForms() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Share Dialog with QR Code */}
+      <Dialog open={!!shareForm} onOpenChange={() => setShareForm(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <QrCode className="h-5 w-5 text-primary" />
+              Compartilhar Formulário
+            </DialogTitle>
+            <DialogDescription>
+              {shareForm?.title}
+            </DialogDescription>
+          </DialogHeader>
+          
+          {shareForm && (
+            <div className="space-y-6">
+              {/* QR Code */}
+              <div className="flex flex-col items-center gap-4 p-6 bg-muted/50 rounded-xl">
+                <div className="p-4 bg-background rounded-xl shadow-lg">
+                  <QRCodeSVG
+                    id={`qr-${shareForm.id}`}
+                    value={getFormLink(shareForm.id)}
+                    size={180}
+                    level="H"
+                    includeMargin
+                    bgColor="transparent"
+                    fgColor="currentColor"
+                    className="text-foreground"
+                  />
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => downloadQRCode(shareForm.id, shareForm.title)}
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Baixar QR Code
+                </Button>
+              </div>
+
+              {/* Link */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium flex items-center gap-2">
+                  <Link2 className="h-4 w-4" />
+                  Link do Formulário
+                </label>
+                <div className="flex gap-2">
+                  <Input
+                    readOnly
+                    value={getFormLink(shareForm.id)}
+                    className="text-xs"
+                  />
+                  <Button
+                    variant="secondary"
+                    size="icon"
+                    onClick={() => copyLink(shareForm.id)}
+                  >
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+
+              {/* Open Form Button */}
+              <Button
+                className="w-full gradient-primary"
+                onClick={() => window.open(getFormLink(shareForm.id), '_blank')}
+              >
+                <ExternalLink className="h-4 w-4 mr-2" />
+                Abrir Formulário
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Delete Confirmation */}
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
