@@ -212,9 +212,15 @@ export default function ReviewReport() {
     return {};
   };
 
-  const getDimensionScores = (scores: Json) => {
+  const getDimensionScores = (scores: Json): Array<[string, number]> => {
     if (typeof scores === "object" && scores !== null && !Array.isArray(scores)) {
-      return Object.entries(scores as Record<string, number>);
+      return Object.entries(scores as Record<string, unknown>).map(([key, value]) => {
+        // Handle both plain numbers and objects with {score, risk_color}
+        if (typeof value === "object" && value !== null && "score" in value) {
+          return [key, (value as { score: number }).score];
+        }
+        return [key, typeof value === "number" ? value : 0];
+      });
     }
     return [];
   };
