@@ -3,11 +3,12 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { User, Building2, Briefcase, Calendar, Clock, Loader2 } from "lucide-react";
+import { User, Building2, Briefcase, Calendar, Clock, Loader2, CreditCard } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { formatCPF, validateCPF } from "@/lib/cpfUtils";
 
 export interface RespondentData {
-  nome: string;
+  cpf: string;
   empresa: string;
   setor: string;
   cargo: string;
@@ -54,6 +55,7 @@ export function RespondentDataForm({ data, onChange }: RespondentDataFormProps) 
   const [departments, setDepartments] = useState<Department[]>([]);
   const [jobRoles, setJobRoles] = useState<JobRole[]>([]);
   const [loadingData, setLoadingData] = useState(true);
+  const [cpfError, setCpfError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchData();
@@ -77,6 +79,22 @@ export function RespondentDataForm({ data, onChange }: RespondentDataFormProps) 
 
   const updateField = (field: keyof RespondentData, value: string) => {
     onChange({ ...data, [field]: value });
+  };
+
+  const handleCPFChange = (value: string) => {
+    const formatted = formatCPF(value);
+    updateField("cpf", formatted);
+    
+    const cleaned = formatted.replace(/\D/g, '');
+    if (cleaned.length === 11) {
+      if (!validateCPF(cleaned)) {
+        setCpfError("CPF inválido");
+      } else {
+        setCpfError(null);
+      }
+    } else {
+      setCpfError(null);
+    }
   };
 
   // Filter job roles by selected department
@@ -110,19 +128,22 @@ export function RespondentDataForm({ data, onChange }: RespondentDataFormProps) 
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid gap-4 sm:grid-cols-2">
-          {/* Nome */}
+          {/* CPF */}
           <div className="space-y-2">
-            <Label htmlFor="nome" className="flex items-center gap-2">
-              <User className="h-4 w-4 text-muted-foreground" />
-              Nome Completo *
+            <Label htmlFor="cpf" className="flex items-center gap-2">
+              <CreditCard className="h-4 w-4 text-muted-foreground" />
+              CPF *
             </Label>
             <Input
-              id="nome"
-              value={data.nome}
-              onChange={(e) => updateField("nome", e.target.value)}
-              placeholder="Seu nome completo"
+              id="cpf"
+              value={data.cpf}
+              onChange={(e) => handleCPFChange(e.target.value)}
+              placeholder="000.000.000-00"
+              maxLength={14}
               required
+              className={cpfError ? "border-red-500" : ""}
             />
+            {cpfError && <p className="text-xs text-red-500">{cpfError}</p>}
           </div>
 
           {/* Empresa - Fixo Amaggi */}
