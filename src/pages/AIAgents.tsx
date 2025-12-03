@@ -66,10 +66,13 @@ const AI_PROVIDERS = [
 
 const MODELS_BY_PROVIDER: Record<string, { value: string; label: string }[]> = {
   lovable: [
-    { value: "google/gemini-2.5-flash", label: "Gemini 2.5 Flash" },
-    { value: "google/gemini-2.5-pro", label: "Gemini 2.5 Pro" },
+    { value: "google/gemini-2.5-flash", label: "Gemini 2.5 Flash (Recomendado)" },
+    { value: "google/gemini-2.5-flash-lite", label: "Gemini 2.5 Flash Lite (Rápido)" },
+    { value: "google/gemini-2.5-pro", label: "Gemini 2.5 Pro (Avançado)" },
+    { value: "google/gemini-3-pro-preview", label: "Gemini 3 Pro Preview (Novo)" },
     { value: "openai/gpt-5", label: "GPT-5" },
     { value: "openai/gpt-5-mini", label: "GPT-5 Mini" },
+    { value: "openai/gpt-5-nano", label: "GPT-5 Nano (Econômico)" },
   ],
   openai: [
     { value: "gpt-4o", label: "GPT-4o" },
@@ -220,21 +223,25 @@ export default function AIAgents() {
 
     setUploading(true);
     try {
-      const fileName = `${Date.now()}-${file.name}`;
-      const filePath = `documents/${fileName}`;
+      // Use knowledge-docs folder (same as existing documents)
+      const fileName = `${Date.now()}-${file.name.replace(/\s+/g, '_')}`;
+      const filePath = `knowledge-docs/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
         .from("knowledge-base")
-        .upload(filePath, file);
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
 
       if (uploadError) throw uploadError;
 
       const { data: doc, error: docError } = await supabase
         .from("knowledge_documents")
         .insert({
-          name: file.name,
+          name: file.name.replace(/\.[^/.]+$/, ""), // Remove extension for display name
           file_path: filePath,
-          file_type: file.type,
+          file_type: file.type || file.name.split('.').pop() || 'unknown',
           file_size: file.size,
           status: "pending",
           created_by: user?.id
@@ -251,7 +258,7 @@ export default function AIAgents() {
       processDocument(doc.id);
     } catch (error) {
       console.error("Upload error:", error);
-      toast.error("Erro no upload");
+      toast.error("Erro no upload: " + (error instanceof Error ? error.message : "Erro desconhecido"));
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";

@@ -204,27 +204,61 @@ serve(async (req) => {
       .eq("id", documentId);
 
     // Download file from storage
+    console.log("Attempting to download file from path:", document.file_path);
+    
+    let downloadedFile: Blob | null = null;
+    
     const { data: fileData, error: fileError } = await supabase.storage
       .from("knowledge-base")
       .download(document.file_path);
 
     if (fileError || !fileData) {
       console.error("File download error:", fileError);
+      
+      // Try alternative path if original fails
+      const altPath = document.file_path.replace('knowledge-docs/', 'documents/');
+      console.log("Trying alternative path:", altPath);
+      
+      const { data: altData, error: altError } = await supabase.storage
+        .from("knowledge-base")
+        .download(altPath);
+        
+      if (altError || !altData) {
+        console.error("Alternative path also failed:", altError);
+        
+        await supabase
+          .from("knowledge_documents")
+          .update({ 
+            status: "error", 
+            metadata: { 
+              error: "File not found in storage. Please re-upload the document.",
+              original_path: document.file_path
+            } 
+          })
+          .eq("id", documentId);
+        
+        return new Response(
+          JSON.stringify({ error: "File not found in storage. Please re-upload the document." }),
+          { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      
+      // Update the path in database if alternative worked
       await supabase
         .from("knowledge_documents")
-        .update({ status: "error", metadata: { error: "Failed to download file" } })
+        .update({ file_path: altPath })
         .eq("id", documentId);
-      
-      return new Response(
-        JSON.stringify({ error: "Failed to download file" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+        
+      downloadedFile = altData;
+      console.log("Successfully downloaded from alternative path");
+    } else {
+      downloadedFile = fileData;
     }
 
     // Extract text from file
     let extractedText: string;
     try {
-      const buffer = await fileData.arrayBuffer();
+      const buffer = await downloadedFile.arrayBuffer();
       extractedText = await extractText(buffer, document.file_type);
       console.log(`Extracted ${extractedText.length} characters from ${document.name}`);
     } catch (extractError) {
