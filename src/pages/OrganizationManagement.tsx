@@ -50,6 +50,7 @@ import {
   ChevronRight,
   Tractor,
 } from "lucide-react";
+import { HierarchyView } from "@/components/organization/HierarchyView";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -567,7 +568,11 @@ export default function OrganizationManagement() {
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
+            <TabsTrigger value="hierarchy" className="gap-2">
+              <ChevronRight className="h-4 w-4" />
+              Hierarquia
+            </TabsTrigger>
             <TabsTrigger value="farms" className="gap-2">
               <Tractor className="h-4 w-4" />
               Fazendas
@@ -585,6 +590,15 @@ export default function OrganizationManagement() {
               Colaboradores
             </TabsTrigger>
           </TabsList>
+
+          {/* Hierarchy Tab - Tanguro View */}
+          <TabsContent value="hierarchy">
+            <HierarchyView
+              departments={departments}
+              jobRoles={jobRoles}
+              onUpdate={fetchAll}
+            />
+          </TabsContent>
 
           {/* Farms Tab */}
           <TabsContent value="farms">

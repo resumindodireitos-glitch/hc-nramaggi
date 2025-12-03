@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { RichTextEditor } from "@/components/ui/rich-text-editor";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AETReportPreview } from "@/components/reports/AETReportPreview";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
@@ -26,6 +28,7 @@ import {
   Briefcase,
   Clock,
   Sparkles,
+  Eye,
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -48,6 +51,7 @@ export default function ReviewReport() {
   const [saving, setSaving] = useState(false);
   const [approving, setApproving] = useState(false);
   const [generatingPdf, setGeneratingPdf] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
   const [generatingDocx, setGeneratingDocx] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
   const [editedAnalysis, setEditedAnalysis] = useState("");
@@ -395,6 +399,15 @@ export default function ReviewReport() {
               <Button 
                 variant="outline" 
                 size="sm"
+                onClick={() => setShowPreview(true)}
+                className="gap-2"
+              >
+                <Eye className="h-4 w-4" />
+                Preview
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm"
                 onClick={handleGeneratePdf} 
                 disabled={generatingPdf}
                 className="gap-2"
@@ -580,6 +593,27 @@ export default function ReviewReport() {
             </Card>
           </div>
         </div>
+
+        {/* Preview Dialog */}
+        <Dialog open={showPreview} onOpenChange={setShowPreview}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-auto">
+            <DialogHeader>
+              <DialogTitle>Preview do Relatório AET</DialogTitle>
+            </DialogHeader>
+            <AETReportPreview
+              data={{
+                respondentData: respondent,
+                dimensionScores: dimensionScores,
+                analysis: editedAnalysis,
+                conclusion: editedConclusion,
+                recommendations: editedRecommendations.replace(/<[^>]*>/g, '').split('\n').filter(r => r.trim()),
+                riskLevel: report.risk_level,
+                formType: report.submissions?.forms?.type || "ergos",
+                createdAt: report.created_at || new Date().toISOString(),
+              }}
+            />
+          </DialogContent>
+        </Dialog>
       </div>
     </AppLayout>
   );
