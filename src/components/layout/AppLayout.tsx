@@ -25,7 +25,6 @@ import {
   Brain,
   ScrollText,
   Inbox,
-  Tractor,
 } from "lucide-react";
 import logoHC from "@/assets/logo-hc-new.png";
 import { AppHeader } from "./AppHeader";
@@ -68,10 +67,10 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   );
 
   return (
-    <>
+    <div className="flex flex-col h-full">
       {/* Logos */}
       <div className={cn(
-        "flex flex-col gap-3 py-2 mb-6",
+        "flex flex-col gap-3 py-2 mb-4 flex-shrink-0",
         open ? "px-3" : "px-0 items-center"
       )}>
         {/* HC Logo */}
@@ -90,8 +89,8 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
         </div>
       </div>
 
-      {/* Navigation */}
-      <nav className="flex-1 space-y-1 overflow-y-auto overflow-x-hidden min-h-0">
+      {/* Navigation - Scrollable */}
+      <nav className="flex-1 space-y-1 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-sidebar-accent scrollbar-track-transparent">
         <SidebarLabel>Menu Principal</SidebarLabel>
         {filteredNavItems.slice(0, 3).map((item) => (
           <SidebarLink
@@ -122,8 +121,8 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
         )}
       </nav>
 
-      {/* User Profile & Logout */}
-      <div className="mt-4 border-t border-sidebar-border pt-4">
+      {/* User Profile & Logout - Fixed at bottom */}
+      <div className="flex-shrink-0 mt-4 border-t border-sidebar-border pt-4">
         <motion.div
           animate={{
             display: animate ? (open ? "block" : "none") : "block",
@@ -168,7 +167,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
           </motion.span>
         </Button>
       </div>
-    </>
+    </div>
   );
 }
 
@@ -176,17 +175,18 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
 
   return (
-    <div className="min-h-screen flex w-full bg-background">
+    <div className="h-screen flex w-full bg-background overflow-hidden">
+      {/* Sidebar - Fixed height, own scroll */}
       <Sidebar open={open} setOpen={setOpen}>
-        <SidebarBody className="gradient-dark justify-between gap-4 border-r border-sidebar-border">
+        <SidebarBody className="gradient-dark border-r border-sidebar-border h-screen sticky top-0">
           <SidebarContent onNavigate={() => setOpen(false)} />
         </SidebarBody>
       </Sidebar>
 
-      {/* Main content */}
-      <div className="flex-1 flex flex-col min-h-screen overflow-auto">
+      {/* Main content - Full height with own scroll */}
+      <div className="flex-1 flex flex-col h-screen overflow-hidden">
         <AppHeader />
-        <main className="flex-1">
+        <main className="flex-1 overflow-y-auto">
           <div className="p-4 lg:p-8 max-w-7xl">{children}</div>
         </main>
       </div>
