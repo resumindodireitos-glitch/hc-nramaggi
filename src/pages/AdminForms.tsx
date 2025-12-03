@@ -158,13 +158,13 @@ export default function AdminForms() {
   };
 
   const copyLink = (formId: string) => {
-    const link = `${window.location.origin}/forms/${formId}`;
+    const link = `${window.location.origin}/f/${formId}`;
     navigator.clipboard.writeText(link);
-    toast.success("Link copiado!");
+    toast.success("Link público copiado!");
   };
 
   const getFormLink = (formId: string) => {
-    return `${window.location.origin}/forms/${formId}`;
+    return `${window.location.origin}/f/${formId}`;
   };
 
   const downloadQRCode = (formId: string, formTitle: string) => {
