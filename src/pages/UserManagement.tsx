@@ -522,6 +522,23 @@ export default function UserManagement() {
   const getRoleBadges = (user: UserWithRoles) => {
     const badges = [];
     
+    // Status badge (active/inactive)
+    const isActive = user.appRoles.length > 0;
+    badges.push(
+      <Badge 
+        key="status" 
+        className={`mr-1 ${isActive 
+          ? "bg-green-500/10 text-green-600 border-0" 
+          : "bg-red-500/10 text-red-600 border-0"}`}
+      >
+        {isActive ? (
+          <><CheckCircle className="h-3 w-3 mr-1" />Ativo</>
+        ) : (
+          <><Ban className="h-3 w-3 mr-1" />Inativo</>
+        )}
+      </Badge>
+    );
+    
     if (user.appRoles.includes("super_admin")) {
       badges.push(
         <Badge key="super" className="bg-amber-500/10 text-amber-600 border-0 mr-1">
@@ -540,7 +557,7 @@ export default function UserManagement() {
       );
     }
     
-    if (badges.length === 0 || user.role === "employee_amaggi") {
+    if (badges.length <= 1 || user.role === "employee_amaggi") {
       if (!user.appRoles.includes("admin_hc") && !user.appRoles.includes("super_admin")) {
         badges.push(
           <Badge key="employee" variant="secondary" className="border-0">
