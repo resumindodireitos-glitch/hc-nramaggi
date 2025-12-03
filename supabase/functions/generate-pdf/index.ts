@@ -114,24 +114,65 @@ serve(async (req) => {
     const jobRole = employee?.job_roles;
     const department = jobRole?.departments;
     const farm = department?.farms;
-    const respondentData = submission?.respondent_data || {};
-    const answers = submission?.answers || {};
-    const dimensionsScore = report.dimensions_score || {};
+    const respondentData = (submission?.respondent_data || {}) as Record<string, string>;
+    const answers = (submission?.answers || {}) as Record<string, number | string>;
+    const dimensionsScore = (report.dimensions_score || {}) as Record<string, { score: number; risk_color?: string }>;
 
-    // Extract data
-    const respondentName = escapeHtml((respondentData as any).nome || (respondentData as any).full_name || employee?.name) || "Não informado";
-    const respondentDept = escapeHtml((respondentData as any).setor || (respondentData as any).department || department?.name) || "Não informado";
-    const respondentJob = escapeHtml((respondentData as any).cargo || (respondentData as any).job_title || jobRole?.name) || "Não informado";
-    const respondentCompany = escapeHtml((respondentData as any).empresa || (respondentData as any).company) || "Amaggi";
-    const farmName = escapeHtml(farm?.name || (respondentData as any).fazenda) || "Sede";
+    console.log("Respondent data:", JSON.stringify(respondentData));
+    console.log("Answers:", JSON.stringify(answers));
+    console.log("Dimensions score:", JSON.stringify(dimensionsScore));
+
+    // Extract data - check multiple field name variations
+    const respondentName = escapeHtml(
+      respondentData.nome || 
+      respondentData.full_name || 
+      respondentData.name ||
+      employee?.name
+    ) || "Não informado";
+    
+    const respondentDept = escapeHtml(
+      respondentData.setor || 
+      respondentData.department || 
+      respondentData.departamento ||
+      department?.name
+    ) || "Não informado";
+    
+    const respondentJob = escapeHtml(
+      respondentData.cargo || 
+      respondentData.job_title || 
+      respondentData.funcao ||
+      jobRole?.name
+    ) || "Não informado";
+    
+    const respondentCompany = escapeHtml(
+      respondentData.empresa || 
+      respondentData.company
+    ) || "Amaggi";
+    
+    const farmName = escapeHtml(
+      farm?.name || 
+      respondentData.fazenda || 
+      respondentData.unidade
+    ) || "Sede";
+    
     const reportDate = formatDate(report.created_at);
-    const evaluationDate = formatDate((respondentData as any).data_avaliacao || report.created_at);
+    const evaluationDate = formatDate(respondentData.data_avaliacao || report.created_at);
     const formType = form?.type || "ergos";
     const analysisText = escapeHtml(report.final_text_override || report.ai_analysis_text) || "";
     const conclusionText = escapeHtml(report.ai_conclusion) || "";
     const recommendations = report.ai_recommendations || [];
-    const gender = (respondentData as any).genero || "Não informado";
-    const tenure = (respondentData as any).tempo_empresa || "Não informado";
+    
+    const gender = escapeHtml(
+      respondentData.genero || 
+      respondentData.sexo ||
+      respondentData.gender
+    ) || "Não informado";
+    
+    const tenure = escapeHtml(
+      respondentData.tempo_empresa || 
+      respondentData.tempo_funcao ||
+      respondentData.tenure
+    ) || "Não informado";
 
     const isErgos = formType === "ergos";
     const toolName = isErgos ? "ERGOS" : "HSE-IT";
