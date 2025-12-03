@@ -281,6 +281,9 @@ export default function ReviewReport() {
     data_avaliacao: "Data da Avaliação",
   };
 
+  // Fields to exclude (duplicates/internal)
+  const excludedFields = ["full_name", "sexo", "tempo_funcao", "submitted_at", "user_id"];
+
   if (loading) {
     return (
       <AppLayout>
@@ -406,7 +409,7 @@ export default function ReviewReport() {
               <CardContent className="pt-4">
                 <div className="space-y-3">
                   {Object.entries(respondent)
-                    .filter(([key]) => !["submitted_at", "user_id"].includes(key))
+                    .filter(([key]) => !excludedFields.includes(key))
                     .map(([key, value]) => (
                     <div key={key} className="flex items-center justify-between py-2">
                       <span className="text-sm text-muted-foreground flex items-center gap-2">
