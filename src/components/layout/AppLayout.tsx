@@ -90,7 +90,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
       </div>
 
       {/* Navigation - Scrollable */}
-      <nav className="flex-1 space-y-1 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-sidebar-accent scrollbar-track-transparent">
+      <nav className="flex-1 space-y-1 overflow-y-auto overflow-x-hidden sidebar-scroll pr-1">
         <SidebarLabel>Menu Principal</SidebarLabel>
         {filteredNavItems.slice(0, 3).map((item) => (
           <SidebarLink
