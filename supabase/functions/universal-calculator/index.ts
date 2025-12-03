@@ -6,435 +6,160 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-/**
- * UNIVERSAL CALCULATOR
- * 
- * This edge function calculates scores from any form type using metadata-driven rules.
- * The calculation rules are stored in the forms.calculation_rules column.
- * 
- * Supported methods:
- * - sum_with_coefficient: ERGOS formula (0.83 × (A + B))
- * - average_by_dimension: HSE-IT formula (average percentage per dimension)
- * - weighted_sum: NASA-TLX formula (weighted average)
- * 
- * Output is ALWAYS normalized to a standard JSON structure:
- * {
- *   global_score: number (0-100),
- *   risk_level: "baixo" | "medio" | "alto",
- *   risk_label: string,
- *   risk_color: string,
- *   dimensions: [{ name, score, status, color }]
- * }
- */
-
 interface CalculationRules {
-  method: "sum_with_coefficient" | "average_by_dimension" | "weighted_sum";
+  method: string;
   coefficient?: number;
-  output_scale?: number;
-  blocks?: Record<string, {
-    name: string;
-    dimensions: Array<{ id: string; name: string; max_score: number }>;
-  }>;
-  dimensions?: Array<{
-    id: string;
-    name: string;
-    question_ids?: string[];
-    weight?: number;
-    max_score?: number;
-    description?: string;
-  }>;
-  inverted_dimensions?: string[];
+  blocks?: Record<string, { name: string; dimensions: string[] }>;
+  dimensions?: Record<string, { questions: string[]; is_reverse_scored: boolean }>;
+  stressor_threshold?: { direct: number[]; reverse: number[] };
 }
 
 interface RiskThresholds {
-  levels: Array<{
-    max: number;
-    label: string;
-    risk_level: string;
-    color: string;
-    description?: string;
-  }>;
-  dimension_thresholds: Array<{
-    max: number;
-    status: string;
-    color: string;
-  }>;
+  levels: Array<{ min: number; max: number; level: string; label: string; color: string; description: string }>;
+  dimension_thresholds: { low: { max: number; status: string; color: string }; medium: { max: number; status: string; color: string }; high: { min: number; status: string; color: string } };
 }
 
-interface StandardOutput {
-  global_score: number;
-  risk_level: string;
-  risk_label: string;
-  risk_color: string;
-  risk_description: string;
-  dimensions: Array<{
-    name: string;
-    score: number;
-    normalized_score: number;
-    status: string;
-    color: string;
-  }>;
-  blocks?: Record<string, {
-    name: string;
-    total: number;
-    dimensions: Array<{ name: string; score: number; status: string; color: string }>;
-  }>;
-  form_type: string;
-  calculation_method: string;
+function getDimensionStatus(score: number, thresholds: RiskThresholds["dimension_thresholds"]): { status: string; color: string } {
+  if (score <= thresholds.low.max) return { status: thresholds.low.status, color: thresholds.low.color };
+  if (score <= thresholds.medium.max) return { status: thresholds.medium.status, color: thresholds.medium.color };
+  return { status: thresholds.high.status, color: thresholds.high.color };
 }
 
-function getDimensionStatus(
-  score: number,
-  thresholds: RiskThresholds["dimension_thresholds"]
-): { status: string; color: string } {
-  for (const threshold of thresholds) {
-    if (score <= threshold.max) {
-      return { status: threshold.status, color: threshold.color };
-    }
+function getRiskLevel(score: number, levels: RiskThresholds["levels"]): { level: string; label: string; color: string; description: string } {
+  for (const t of levels) {
+    if (score >= t.min && score <= t.max) return { level: t.level, label: t.label, color: t.color, description: t.description };
   }
-  return { status: "Crítico", color: "red" };
+  const last = levels[levels.length - 1];
+  return { level: last.level, label: last.label, color: last.color, description: last.description };
 }
 
-function getRiskLevel(
-  score: number,
-  thresholds: RiskThresholds["levels"]
-): { risk_level: string; risk_label: string; risk_color: string; risk_description: string } {
-  for (const threshold of thresholds) {
-    if (score <= threshold.max) {
-      return {
-        risk_level: threshold.risk_level,
-        risk_label: threshold.label,
-        risk_color: threshold.color,
-        risk_description: threshold.description || "",
-      };
-    }
-  }
-  return { risk_level: "alto", risk_label: "Crítico", risk_color: "red", risk_description: "" };
-}
-
-function calculateERGOS(
-  answers: Record<string, any>,
-  rules: CalculationRules,
-  thresholds: RiskThresholds
-): StandardOutput {
+// ERGOS: Soma de pesos com coeficiente 0.83
+function calculateERGOS_Weighted(answers: Record<string, any>, schema: any[], rules: CalculationRules, thresholds: RiskThresholds) {
+  console.log("=== ERGOS WEIGHTED ===");
   const coefficient = rules.coefficient || 0.83;
-  const blocks: StandardOutput["blocks"] = {};
-  const allDimensions: StandardOutput["dimensions"] = [];
-  let totalBlocoA = 0;
-  let totalBlocoB = 0;
+  const questionMap: Record<string, any> = {};
+  schema.forEach((item: any) => { if (item.type === "weighted_radio" && item.id) questionMap[item.id] = item; });
 
-  // Process each block
-  for (const [blockKey, block] of Object.entries(rules.blocks || {})) {
-    const blockDimensions: Array<{ name: string; score: number; status: string; color: string }> = [];
-    let blockTotal = 0;
+  const dimensionScores: Record<string, { total: number; count: number; bloco: string }> = {};
+  const allDimensions = ["Pressão de Tempo", "Atenção", "Complexidade", "Monotonia", "Raciocínio", "Iniciativa", "Isolamento", "Horários e Turnos", "Relacionamentos", "Demandas Gerais"];
+  const blocoA = ["Pressão de Tempo", "Atenção", "Complexidade", "Monotonia", "Raciocínio"];
+  allDimensions.forEach(dim => { dimensionScores[dim] = { total: 0, count: 0, bloco: blocoA.includes(dim) ? "A" : "B" }; });
 
-    for (const dim of block.dimensions) {
-      const rawValue = parseFloat(answers[dim.id]) || 0;
-      const score = Math.min(rawValue, dim.max_score);
-      blockTotal += score;
-
-      // Normalize score to percentage for dimension status
-      const normalizedScore = (score / dim.max_score) * 100;
-      const { status, color } = getDimensionStatus(normalizedScore, thresholds.dimension_thresholds);
-
-      blockDimensions.push({ name: dim.name, score, status, color });
-      allDimensions.push({
-        name: dim.name,
-        score,
-        normalized_score: normalizedScore,
-        status,
-        color,
-      });
+  for (const [qId, answer] of Object.entries(answers)) {
+    const q = questionMap[qId];
+    if (!q || q.type !== "weighted_radio") continue;
+    const dimGroup = q.dimension_group;
+    if (!dimGroup || !dimensionScores[dimGroup]) continue;
+    
+    let weight = 0;
+    if (q.options && Array.isArray(q.options)) {
+      const opt = q.options.find((o: any) => o.text === answer);
+      if (opt) weight = opt.weight || 0;
+      else if (typeof answer === "number") weight = answer;
     }
-
-    blocks[blockKey] = {
-      name: block.name,
-      total: blockTotal,
-      dimensions: blockDimensions,
-    };
-
-    if (blockKey === "bloco_a") totalBlocoA = blockTotal;
-    if (blockKey === "bloco_b") totalBlocoB = blockTotal;
+    dimensionScores[dimGroup].total += weight;
+    dimensionScores[dimGroup].count += 1;
   }
 
-  // Apply ERGOS formula: 0.83 × (A + B)
-  const globalScore = Math.round(coefficient * (totalBlocoA + totalBlocoB));
-  const { risk_level, risk_label, risk_color, risk_description } = getRiskLevel(globalScore, thresholds.levels);
+  let totalA = 0, totalB = 0;
+  const dimensions: any[] = [];
+  for (const [name, data] of Object.entries(dimensionScores)) {
+    const maxPossible = data.count * 4;
+    const normalized = maxPossible > 0 ? Math.round((data.total / maxPossible) * 100) : 0;
+    const { status, color } = getDimensionStatus(normalized, thresholds.dimension_thresholds);
+    dimensions.push({ name, score: data.total, normalized_score: normalized, status, color, bloco: data.bloco });
+    if (data.bloco === "A") totalA += data.total; else totalB += data.total;
+  }
 
-  return {
-    global_score: globalScore,
-    risk_level,
-    risk_label,
-    risk_color,
-    risk_description,
-    dimensions: allDimensions,
-    blocks,
-    form_type: "ergos",
-    calculation_method: "sum_with_coefficient",
-  };
+  const globalScore = Math.round(coefficient * (totalA + totalB));
+  const maxTheoretical = 10 * 3 * 4 * coefficient;
+  const normalizedGlobal = Math.min(100, Math.round((globalScore / maxTheoretical) * 100));
+  const risk = getRiskLevel(normalizedGlobal, thresholds.levels);
+
+  return { global_score: normalizedGlobal, risk_level: risk.level, risk_label: risk.label, risk_color: risk.color, risk_description: risk.description, dimensions, blocos: { A: { total: totalA, name: "Fatores Cognitivos" }, B: { total: totalB, name: "Fatores Organizacionais" } }, calculation_method: "ergos_weighted", calculated_at: new Date().toISOString() };
 }
 
-function calculateHSEIT(
-  answers: Record<string, any>,
-  rules: CalculationRules,
-  thresholds: RiskThresholds
-): StandardOutput {
-  const dimensions: StandardOutput["dimensions"] = [];
-  const invertedDimensions = rules.inverted_dimensions || [];
-  let totalScore = 0;
-  let dimensionCount = 0;
+// HSE-IT: Porcentagem de questões estressoras
+function calculateHSEIT_Percentage(answers: Record<string, any>, schema: any[], rules: CalculationRules, thresholds: RiskThresholds) {
+  console.log("=== HSE-IT PERCENTAGE ===");
+  const dimConfig = rules.dimensions || {
+    "Demandas": { questions: ["d1","d2","d3","d4","d5","d6","d7","d8"], is_reverse_scored: false },
+    "Relacionamentos": { questions: ["r1","r2","r3","r4"], is_reverse_scored: false },
+    "Controle": { questions: ["c1","c2","c3","c4","c5","c6"], is_reverse_scored: true },
+    "Apoio Chefia": { questions: ["ac1","ac2","ac3","ac4","ac5"], is_reverse_scored: true },
+    "Apoio Colegas": { questions: ["acol1","acol2","acol3","acol4"], is_reverse_scored: true },
+    "Cargo": { questions: ["cg1","cg2","cg3","cg4","cg5"], is_reverse_scored: true },
+    "Mudanças": { questions: ["m1","m2","m3"], is_reverse_scored: true }
+  };
+  const stressorThreshold = rules.stressor_threshold || { direct: [4, 5], reverse: [1, 2] };
 
-  for (const dim of rules.dimensions || []) {
-    // Try to get value directly by dimension ID first
-    let rawValue = parseFloat(answers[dim.id]);
-    
-    // If not found, try to calculate from question_ids
-    if (isNaN(rawValue) && dim.question_ids && dim.question_ids.length > 0) {
-      let sum = 0;
-      let count = 0;
-      for (const qId of dim.question_ids) {
-        const qValue = parseFloat(answers[qId]);
-        if (!isNaN(qValue)) {
-          sum += qValue;
-          count++;
-        }
-      }
-      rawValue = count > 0 ? sum / count : 0;
+  const dimensions: any[] = [];
+  let totalStressors = 0, totalQuestions = 0;
+
+  for (const [dimName, config] of Object.entries(dimConfig)) {
+    let stressorCount = 0, answeredCount = 0;
+    for (const qId of config.questions) {
+      const val = answers[qId];
+      if (val === undefined || val === null) continue;
+      const numVal = typeof val === "object" ? val.value : typeof val === "number" ? val : parseInt(val, 10);
+      if (isNaN(numVal)) continue;
+      answeredCount++;
+      const isStressor = config.is_reverse_scored ? stressorThreshold.reverse.includes(numVal) : stressorThreshold.direct.includes(numVal);
+      if (isStressor) stressorCount++;
     }
-
-    if (isNaN(rawValue)) rawValue = 0;
-
-    // For inverted dimensions (demandas, relacionamentos), high values indicate stress
-    // For normal dimensions, low values indicate stress
-    // Normalize to: 0% = good, 100% = bad
-    let normalizedScore = rawValue;
-    if (!invertedDimensions.includes(dim.id)) {
-      // Invert the score for non-inverted dimensions
-      normalizedScore = 100 - rawValue;
-    }
-
-    const { status, color } = getDimensionStatus(normalizedScore, thresholds.dimension_thresholds);
-
-    dimensions.push({
-      name: dim.name,
-      score: rawValue,
-      normalized_score: normalizedScore,
-      status,
-      color,
-    });
-
-    totalScore += normalizedScore;
-    dimensionCount++;
+    const percentage = answeredCount > 0 ? Math.round((stressorCount / answeredCount) * 100) : 0;
+    const { status, color } = getDimensionStatus(percentage, thresholds.dimension_thresholds);
+    dimensions.push({ name: dimName, score: stressorCount, normalized_score: percentage, status, color });
+    totalStressors += stressorCount;
+    totalQuestions += answeredCount;
   }
 
-  const globalScore = dimensionCount > 0 ? Math.round(totalScore / dimensionCount) : 0;
-  const { risk_level, risk_label, risk_color, risk_description } = getRiskLevel(globalScore, thresholds.levels);
-
-  return {
-    global_score: globalScore,
-    risk_level,
-    risk_label,
-    risk_color,
-    risk_description,
-    dimensions,
-    form_type: "hse_it",
-    calculation_method: "average_by_dimension",
-  };
-}
-
-function calculateWeightedSum(
-  answers: Record<string, any>,
-  rules: CalculationRules,
-  thresholds: RiskThresholds
-): StandardOutput {
-  const dimensions: StandardOutput["dimensions"] = [];
-  let weightedTotal = 0;
-  let totalWeight = 0;
-
-  for (const dim of rules.dimensions || []) {
-    const rawValue = parseFloat(answers[dim.id]) || 0;
-    const weight = dim.weight || 1;
-    const maxScore = dim.max_score || 100;
-    
-    // Normalize to percentage
-    const normalizedScore = (rawValue / maxScore) * 100;
-    const { status, color } = getDimensionStatus(normalizedScore, thresholds.dimension_thresholds);
-
-    dimensions.push({
-      name: dim.name,
-      score: rawValue,
-      normalized_score: normalizedScore,
-      status,
-      color,
-    });
-
-    weightedTotal += normalizedScore * weight;
-    totalWeight += weight;
-  }
-
-  const globalScore = totalWeight > 0 ? Math.round(weightedTotal / totalWeight) : 0;
-  const { risk_level, risk_label, risk_color, risk_description } = getRiskLevel(globalScore, thresholds.levels);
-
-  return {
-    global_score: globalScore,
-    risk_level,
-    risk_label,
-    risk_color,
-    risk_description,
-    dimensions,
-    form_type: "weighted",
-    calculation_method: "weighted_sum",
-  };
+  const globalPercentage = totalQuestions > 0 ? Math.round((totalStressors / totalQuestions) * 100) : 0;
+  const risk = getRiskLevel(globalPercentage, thresholds.levels);
+  return { global_score: globalPercentage, risk_level: risk.level, risk_label: risk.label, risk_color: risk.color, risk_description: risk.description, dimensions, calculation_method: "hseit_percentage", calculated_at: new Date().toISOString() };
 }
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
     const { submissionId, reportId } = await req.json();
+    if (!submissionId && !reportId) throw new Error("submissionId ou reportId obrigatório");
 
-    if (!submissionId && !reportId) {
-      return new Response(
-        JSON.stringify({ error: "submissionId or reportId is required" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+    const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-    let submissionIdToUse = submissionId;
-
-    // If reportId provided, get submissionId from report
+    let targetId = submissionId;
     if (reportId && !submissionId) {
-      const { data: report, error: reportError } = await supabase
-        .from("reports")
-        .select("submission_id")
-        .eq("id", reportId)
-        .single();
-
-      if (reportError || !report) {
-        return new Response(
-          JSON.stringify({ error: "Report not found" }),
-          { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      submissionIdToUse = report.submission_id;
+      const { data: r } = await supabase.from("reports").select("submission_id").eq("id", reportId).single();
+      if (r) targetId = r.submission_id;
     }
 
-    // Fetch submission with form data
-    const { data: submission, error: fetchError } = await supabase
-      .from("submissions")
-      .select("*, forms(*)")
-      .eq("id", submissionIdToUse)
-      .single();
+    const { data: sub, error } = await supabase.from("submissions").select("*, forms(*)").eq("id", targetId).single();
+    if (error || !sub) throw new Error("Submission não encontrada");
 
-    if (fetchError || !submission) {
-      return new Response(
-        JSON.stringify({ error: "Submission not found" }),
-        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    const form = (sub as any).forms;
+    const answers = sub.answers as Record<string, any>;
+    const schema = form.schema as any[];
+    const rules: CalculationRules = form.calculation_rules || { method: form.type === "ergos" ? "ergos_weighted" : "hseit_percentage" };
+    const thresholds: RiskThresholds = form.risk_thresholds || {
+      levels: [{ min: 0, max: 30, level: "baixo", label: "Satisfatório", color: "green", description: "Adequado" }, { min: 31, max: 60, level: "medio", label: "Aceitável", color: "yellow", description: "Atenção" }, { min: 61, max: 100, level: "alto", label: "Deve Melhorar", color: "red", description: "Crítico" }],
+      dimension_thresholds: { low: { max: 30, status: "Adequado", color: "green" }, medium: { max: 60, status: "Atenção", color: "yellow" }, high: { min: 61, status: "Crítico", color: "red" } }
+    };
+
+    let result;
+    if (rules.method === "ergos_weighted" || form.type === "ergos") {
+      result = calculateERGOS_Weighted(answers, schema, rules, thresholds);
+    } else {
+      result = calculateHSEIT_Percentage(answers, schema, rules, thresholds);
     }
 
-    const form = submission.forms;
-    if (!form) {
-      return new Response(
-        JSON.stringify({ error: "Form not found" }),
-        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    console.log("Processing submission:", submissionIdToUse, "Form type:", form.type);
-
-    // Get calculation rules and thresholds from form
-    let calculationRules: CalculationRules = form.calculation_rules as CalculationRules;
-    let riskThresholds: RiskThresholds = form.risk_thresholds as RiskThresholds;
-
-    // Fallback to defaults if not configured
-    if (!calculationRules || Object.keys(calculationRules).length === 0) {
-      console.log("Using default calculation rules for", form.type);
-      calculationRules = form.type === "ergos" 
-        ? { method: "sum_with_coefficient", coefficient: 0.83 }
-        : { method: "average_by_dimension" };
-    }
-
-    if (!riskThresholds || !riskThresholds.levels) {
-      console.log("Using default risk thresholds");
-      riskThresholds = {
-        levels: [
-          { max: 33, label: "Baixo", risk_level: "baixo", color: "green" },
-          { max: 66, label: "Médio", risk_level: "medio", color: "yellow" },
-          { max: 100, label: "Alto", risk_level: "alto", color: "red" },
-        ],
-        dimension_thresholds: [
-          { max: 33, status: "Adequado", color: "green" },
-          { max: 66, status: "Atenção", color: "yellow" },
-          { max: 100, status: "Crítico", color: "red" },
-        ],
-      };
-    }
-
-    const answers = submission.answers as Record<string, any>;
-    let result: StandardOutput;
-
-    // Apply the appropriate calculation method
-    switch (calculationRules.method) {
-      case "sum_with_coefficient":
-        result = calculateERGOS(answers, calculationRules, riskThresholds);
-        break;
-      case "average_by_dimension":
-        result = calculateHSEIT(answers, calculationRules, riskThresholds);
-        break;
-      case "weighted_sum":
-        result = calculateWeightedSum(answers, calculationRules, riskThresholds);
-        break;
-      default:
-        // Fallback based on form type
-        if (form.type === "ergos") {
-          result = calculateERGOS(answers, calculationRules, riskThresholds);
-        } else {
-          result = calculateHSEIT(answers, calculationRules, riskThresholds);
-        }
-    }
-
-    // Update form_type to match actual form
-    result.form_type = form.type;
-
-    console.log("Calculation result:", {
-      global_score: result.global_score,
-      risk_level: result.risk_level,
-      dimensions_count: result.dimensions.length,
-    });
-
-    // If reportId provided, update the report with calculated scores
     if (reportId) {
-      const { error: updateError } = await supabase
-        .from("reports")
-        .update({
-          dimensions_score: result,
-          risk_level: result.risk_label,
-        })
-        .eq("id", reportId);
-
-      if (updateError) {
-        console.error("Error updating report:", updateError);
-      } else {
-        console.log("Report updated with new scores");
-      }
+      await supabase.from("reports").update({ dimensions_score: result, risk_level: result.risk_label, updated_at: new Date().toISOString() }).eq("id", reportId);
     }
 
-    return new Response(
-      JSON.stringify({ success: true, result }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
-  } catch (error) {
-    console.error("Universal calculator error:", error);
-    return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : "Internal error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return new Response(JSON.stringify(result), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+  } catch (e) {
+    console.error("Erro:", e);
+    return new Response(JSON.stringify({ error: (e as Error).message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 });
