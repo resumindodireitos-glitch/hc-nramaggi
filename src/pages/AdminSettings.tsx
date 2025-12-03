@@ -85,6 +85,7 @@ const MODELS_BY_PROVIDER: Record<string, { value: string; label: string }[]> = {
 };
 
 const API_KEY_SETTINGS = [
+  { key: "GOOGLE_API_KEY", provider: "google", label: "Google Gemini API Key", placeholder: "AIza..." },
   { key: "OPENAI_API_KEY", provider: "openai", label: "OpenAI API Key", placeholder: "sk-..." },
   { key: "ANTHROPIC_API_KEY", provider: "anthropic", label: "Anthropic API Key", placeholder: "sk-ant-..." },
   { key: "DEEPSEEK_API_KEY", provider: "deepseek", label: "DeepSeek API Key", placeholder: "sk-..." },

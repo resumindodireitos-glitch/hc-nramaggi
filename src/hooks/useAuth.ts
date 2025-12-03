@@ -105,6 +105,13 @@ export function useAuth() {
   // Check if user is super admin (only from user_roles table)
   const isSuperAdmin = profile?.appRoles?.includes("super_admin");
 
+  // Function to refresh profile
+  const refreshProfile = async () => {
+    if (user) {
+      await fetchProfile(user.id);
+    }
+  };
+
   return {
     user,
     session,
@@ -115,5 +122,6 @@ export function useAuth() {
     signIn,
     signUp,
     signOut,
+    refreshProfile,
   };
 }

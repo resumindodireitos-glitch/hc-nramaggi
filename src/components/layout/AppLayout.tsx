@@ -25,9 +25,10 @@ import {
   Brain,
   ScrollText,
   Inbox,
+  Tractor,
 } from "lucide-react";
 import logoHC from "@/assets/logo-hc-new.png";
-import logoAmaggi from "@/assets/logo-amaggi-new.png";
+import { AppHeader } from "./AppHeader";
 
 interface NavItem {
   label: string;
@@ -87,17 +88,6 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
             <p className="text-[10px] text-sidebar-foreground/50 -mt-0.5 whitespace-nowrap">Ergonomia & Fisioterapia</p>
           </motion.div>
         </div>
-        {/* Amaggi Logo */}
-        <motion.div
-          animate={{
-            display: animate ? (open ? "flex" : "none") : "flex",
-            opacity: animate ? (open ? 1 : 0) : 1,
-          }}
-          transition={{ duration: 0.2 }}
-          className="flex items-center gap-2 px-1"
-        >
-          <img src={logoAmaggi} alt="Amaggi" className="h-6 object-contain" />
-        </motion.div>
       </div>
 
       {/* Navigation */}
@@ -194,9 +184,12 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       </Sidebar>
 
       {/* Main content */}
-      <main className="flex-1 min-h-screen overflow-auto">
-        <div className="p-4 lg:p-8 max-w-7xl">{children}</div>
-      </main>
+      <div className="flex-1 flex flex-col min-h-screen overflow-auto">
+        <AppHeader />
+        <main className="flex-1">
+          <div className="p-4 lg:p-8 max-w-7xl">{children}</div>
+        </main>
+      </div>
     </div>
   );
 }
