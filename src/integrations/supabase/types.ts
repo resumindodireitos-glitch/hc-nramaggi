@@ -477,6 +477,59 @@ export type Database = {
         }
         Relationships: []
       }
+      fmea_calculations: {
+        Row: {
+          calculated_at: string | null
+          capacidade_deteccao: number
+          created_at: string | null
+          dimension_scores: Json | null
+          gravidade: number
+          id: string
+          nre_classification: string | null
+          nre_score: number | null
+          probabilidade: number
+          report_id: string | null
+          requires_manual_review: boolean | null
+          review_reason: string | null
+        }
+        Insert: {
+          calculated_at?: string | null
+          capacidade_deteccao?: number
+          created_at?: string | null
+          dimension_scores?: Json | null
+          gravidade: number
+          id?: string
+          nre_classification?: string | null
+          nre_score?: number | null
+          probabilidade: number
+          report_id?: string | null
+          requires_manual_review?: boolean | null
+          review_reason?: string | null
+        }
+        Update: {
+          calculated_at?: string | null
+          capacidade_deteccao?: number
+          created_at?: string | null
+          dimension_scores?: Json | null
+          gravidade?: number
+          id?: string
+          nre_classification?: string | null
+          nre_score?: number | null
+          probabilidade?: number
+          report_id?: string | null
+          requires_manual_review?: boolean | null
+          review_reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fmea_calculations_report_id_fkey"
+            columns: ["report_id"]
+            isOneToOne: true
+            referencedRelation: "reports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       forms: {
         Row: {
           created_at: string | null
@@ -753,6 +806,156 @@ export type Database = {
           },
         ]
       }
+      risk_matrix_biomecanicos: {
+        Row: {
+          cid_relacionado: string | null
+          created_at: string | null
+          dano_potencial: string | null
+          fonte_geradora: string | null
+          gravidade_padrao: number | null
+          id: string
+          is_active: boolean | null
+          medida_controle_sugerida: string | null
+          nr_referencia: string[] | null
+          observacoes: string | null
+          perigo: string
+          probabilidade_base: number | null
+          segmento_corporal: string
+          updated_at: string | null
+        }
+        Insert: {
+          cid_relacionado?: string | null
+          created_at?: string | null
+          dano_potencial?: string | null
+          fonte_geradora?: string | null
+          gravidade_padrao?: number | null
+          id?: string
+          is_active?: boolean | null
+          medida_controle_sugerida?: string | null
+          nr_referencia?: string[] | null
+          observacoes?: string | null
+          perigo: string
+          probabilidade_base?: number | null
+          segmento_corporal: string
+          updated_at?: string | null
+        }
+        Update: {
+          cid_relacionado?: string | null
+          created_at?: string | null
+          dano_potencial?: string | null
+          fonte_geradora?: string | null
+          gravidade_padrao?: number | null
+          id?: string
+          is_active?: boolean | null
+          medida_controle_sugerida?: string | null
+          nr_referencia?: string[] | null
+          observacoes?: string | null
+          perigo?: string
+          probabilidade_base?: number | null
+          segmento_corporal?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      risk_matrix_ergos: {
+        Row: {
+          created_at: string | null
+          dano_potencial: string | null
+          dimension: string
+          fonte_geradora: string | null
+          gravidade_padrao: number | null
+          id: string
+          is_active: boolean | null
+          medida_controle_sugerida: string | null
+          nr_referencia: string[] | null
+          observacoes: string | null
+          perigo: string
+          probabilidade_base: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          dano_potencial?: string | null
+          dimension: string
+          fonte_geradora?: string | null
+          gravidade_padrao?: number | null
+          id?: string
+          is_active?: boolean | null
+          medida_controle_sugerida?: string | null
+          nr_referencia?: string[] | null
+          observacoes?: string | null
+          perigo: string
+          probabilidade_base?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          dano_potencial?: string | null
+          dimension?: string
+          fonte_geradora?: string | null
+          gravidade_padrao?: number | null
+          id?: string
+          is_active?: boolean | null
+          medida_controle_sugerida?: string | null
+          nr_referencia?: string[] | null
+          observacoes?: string | null
+          perigo?: string
+          probabilidade_base?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      risk_matrix_hseit: {
+        Row: {
+          benchmark_hse: number | null
+          created_at: string | null
+          dano_potencial: string | null
+          dimension: string
+          fonte_geradora: string | null
+          gravidade_padrao: number | null
+          id: string
+          is_active: boolean | null
+          medida_controle_sugerida: string | null
+          nr_referencia: string[] | null
+          observacoes: string | null
+          perigo: string
+          probabilidade_base: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          benchmark_hse?: number | null
+          created_at?: string | null
+          dano_potencial?: string | null
+          dimension: string
+          fonte_geradora?: string | null
+          gravidade_padrao?: number | null
+          id?: string
+          is_active?: boolean | null
+          medida_controle_sugerida?: string | null
+          nr_referencia?: string[] | null
+          observacoes?: string | null
+          perigo: string
+          probabilidade_base?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          benchmark_hse?: number | null
+          created_at?: string | null
+          dano_potencial?: string | null
+          dimension?: string
+          fonte_geradora?: string | null
+          gravidade_padrao?: number | null
+          id?: string
+          is_active?: boolean | null
+          medida_controle_sugerida?: string | null
+          nr_referencia?: string[] | null
+          observacoes?: string | null
+          perigo?: string
+          probabilidade_base?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       submission_tokens: {
         Row: {
           created_at: string | null
@@ -841,6 +1044,71 @@ export type Database = {
             columns: ["form_id"]
             isOneToOne: false
             referencedRelation: "forms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      suggested_actions: {
+        Row: {
+          action_description: string | null
+          action_title: string
+          created_at: string | null
+          dimension: string | null
+          due_date: string | null
+          id: string
+          nr_referencia: string[] | null
+          nre_classification: string | null
+          nre_score: number | null
+          priority: string | null
+          report_id: string | null
+          responsible: string | null
+          risk_detected: string
+          source_matrix: string | null
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          action_description?: string | null
+          action_title: string
+          created_at?: string | null
+          dimension?: string | null
+          due_date?: string | null
+          id?: string
+          nr_referencia?: string[] | null
+          nre_classification?: string | null
+          nre_score?: number | null
+          priority?: string | null
+          report_id?: string | null
+          responsible?: string | null
+          risk_detected: string
+          source_matrix?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          action_description?: string | null
+          action_title?: string
+          created_at?: string | null
+          dimension?: string | null
+          due_date?: string | null
+          id?: string
+          nr_referencia?: string[] | null
+          nre_classification?: string | null
+          nre_score?: number | null
+          priority?: string | null
+          report_id?: string | null
+          responsible?: string | null
+          risk_detected?: string
+          source_matrix?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "suggested_actions_report_id_fkey"
+            columns: ["report_id"]
+            isOneToOne: false
+            referencedRelation: "reports"
             referencedColumns: ["id"]
           },
         ]
@@ -1030,6 +1298,7 @@ export type Database = {
           submitted_at: string
         }[]
       }
+      get_nre_classification: { Args: { nre: number }; Returns: string }
       get_submission_full_data: {
         Args: { submission_uuid: string }
         Returns: {
