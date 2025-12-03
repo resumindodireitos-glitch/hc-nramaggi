@@ -84,6 +84,85 @@ const STATUS_COLORS: Record<string, string> = {
   "Deve Melhorar": "bg-red-500/10 text-red-500 border-red-500/20",
 };
 
+// Helper to normalize old format to new format
+function normalizeScoreData(rawData: any): StandardScoreData | null {
+  if (!rawData) return null;
+  
+  // If already in new format with dimensions array
+  if (rawData.dimensions && Array.isArray(rawData.dimensions)) {
+    return rawData as StandardScoreData;
+  }
+  
+  // Convert old format (object with dimension keys) to new format
+  const dimensions: Dimension[] = [];
+  let totalScore = 0;
+  let count = 0;
+  
+  // Check if it's an object with dimension data
+  if (typeof rawData === 'object') {
+    for (const [key, value] of Object.entries(rawData)) {
+      // Skip metadata keys
+      if (['global_score', 'risk_level', 'risk_label', 'risk_color', 'risk_description', 'blocks', 'form_type', 'calculation_method'].includes(key)) {
+        continue;
+      }
+      
+      let score = 0;
+      let color = 'yellow';
+      let status = 'Atenção';
+      
+      if (typeof value === 'number') {
+        score = value;
+      } else if (typeof value === 'object' && value !== null) {
+        const v = value as any;
+        score = v.score ?? v.normalized_score ?? 0;
+        color = v.color ?? v.risk_color ?? 'yellow';
+        status = v.status ?? 'Atenção';
+      }
+      
+      // Determine status based on score if not provided
+      if (typeof value === 'number' || (typeof value === 'object' && !(value as any).status)) {
+        const normalizedScore = score > 10 ? score : (score / 10) * 100;
+        if (normalizedScore <= 33) {
+          status = 'Adequado';
+          color = 'green';
+        } else if (normalizedScore <= 66) {
+          status = 'Atenção';
+          color = 'yellow';
+        } else {
+          status = 'Crítico';
+          color = 'red';
+        }
+      }
+      
+      dimensions.push({
+        name: key,
+        score,
+        normalized_score: score > 10 ? score : (score / 10) * 100,
+        status,
+        color,
+      });
+      
+      totalScore += dimensions[dimensions.length - 1].normalized_score;
+      count++;
+    }
+  }
+  
+  const globalScore = rawData.global_score ?? (count > 0 ? Math.round(totalScore / count) : 0);
+  const riskLevel = rawData.risk_level ?? (globalScore > 66 ? 'alto' : globalScore > 33 ? 'medio' : 'baixo');
+  
+  return {
+    global_score: globalScore,
+    risk_level: riskLevel,
+    risk_label: rawData.risk_label ?? (riskLevel === 'alto' ? 'Alto' : riskLevel === 'medio' ? 'Médio' : 'Baixo'),
+    risk_color: rawData.risk_color ?? (riskLevel === 'alto' ? 'red' : riskLevel === 'medio' ? 'yellow' : 'green'),
+    risk_description: rawData.risk_description ?? '',
+    dimensions,
+    blocks: rawData.blocks,
+    form_type: rawData.form_type,
+    calculation_method: rawData.calculation_method,
+  };
+}
+
 export function UniversalScoreChart({
   data,
   showRadar = true,
@@ -91,17 +170,20 @@ export function UniversalScoreChart({
   showBlocks = false,
   compact = false,
 }: UniversalScoreChartProps) {
+  // Normalize data to handle both old and new formats
+  const normalizedData = useMemo(() => normalizeScoreData(data), [data]);
+  
   const chartData = useMemo(() => {
-    if (!data?.dimensions) return [];
-    return data.dimensions.map((dim) => ({
+    if (!normalizedData?.dimensions || normalizedData.dimensions.length === 0) return [];
+    return normalizedData.dimensions.map((dim) => ({
       name: dim.name,
       score: dim.normalized_score || dim.score,
       fullMark: 100,
       color: COLOR_MAP[dim.color] || "#6b7280",
     }));
-  }, [data]);
+  }, [normalizedData]);
 
-  if (!data) {
+  if (!normalizedData) {
     return (
       <Card className="border-0 shadow-sm">
         <CardContent className="p-6">
@@ -114,7 +196,7 @@ export function UniversalScoreChart({
   }
 
   const getRiskBadgeClass = () => {
-    switch (data.risk_level) {
+    switch (normalizedData.risk_level) {
       case "baixo":
         return "bg-green-500/10 text-green-500 border-green-500/20";
       case "medio":
@@ -127,7 +209,7 @@ export function UniversalScoreChart({
   };
 
   const getRiskIcon = () => {
-    switch (data.risk_level) {
+    switch (normalizedData.risk_level) {
       case "baixo":
         return <CheckCircle className="h-4 w-4" />;
       case "alto":
@@ -151,23 +233,23 @@ export function UniversalScoreChart({
             </div>
             <Badge variant="outline" className={`${getRiskBadgeClass()} px-3 py-1 gap-2`}>
               {getRiskIcon()}
-              {data.risk_label}
+              {normalizedData.risk_label}
             </Badge>
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
             <div className="flex items-end gap-2">
-              <span className="text-4xl font-bold">{data.global_score}</span>
+              <span className="text-4xl font-bold">{normalizedData.global_score}</span>
               <span className="text-muted-foreground mb-1">/100</span>
             </div>
             <Progress 
-              value={data.global_score} 
+              value={normalizedData.global_score} 
               className="h-2"
             />
-            {data.risk_description && (
+            {normalizedData.risk_description && (
               <p className="text-sm text-muted-foreground">
-                {data.risk_description}
+                {normalizedData.risk_description}
               </p>
             )}
           </div>
@@ -175,9 +257,9 @@ export function UniversalScoreChart({
       </Card>
 
       {/* Blocks (ERGOS specific) */}
-      {showBlocks && data.blocks && Object.keys(data.blocks).length > 0 && (
+      {showBlocks && normalizedData.blocks && Object.keys(normalizedData.blocks).length > 0 && (
         <div className="grid gap-4 md:grid-cols-2">
-          {Object.entries(data.blocks).map(([key, block]) => (
+          {Object.entries(normalizedData.blocks).map(([key, block]) => (
             <Card key={key} className="border-0 shadow-sm">
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium">
@@ -306,26 +388,30 @@ export function UniversalScoreChart({
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {data.dimensions.map((dim) => (
-              <div key={dim.name} className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">{dim.name}</span>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm">{dim.normalized_score?.toFixed(1) || dim.score}%</span>
-                    <Badge 
-                      variant="outline" 
-                      className={`text-xs ${STATUS_COLORS[dim.status] || ""}`}
-                    >
-                      {dim.status}
-                    </Badge>
+            {normalizedData.dimensions && normalizedData.dimensions.length > 0 ? (
+              normalizedData.dimensions.map((dim) => (
+                <div key={dim.name} className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">{dim.name}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm">{dim.normalized_score?.toFixed(1) || dim.score}%</span>
+                      <Badge 
+                        variant="outline" 
+                        className={`text-xs ${STATUS_COLORS[dim.status] || ""}`}
+                      >
+                        {dim.status}
+                      </Badge>
+                    </div>
                   </div>
+                  <Progress 
+                    value={dim.normalized_score || dim.score} 
+                    className="h-1.5"
+                  />
                 </div>
-                <Progress 
-                  value={dim.normalized_score || dim.score} 
-                  className="h-1.5"
-                />
-              </div>
-            ))}
+              ))
+            ) : (
+              <p className="text-sm text-muted-foreground">Nenhuma dimensão disponível</p>
+            )}
           </div>
         </CardContent>
       </Card>
