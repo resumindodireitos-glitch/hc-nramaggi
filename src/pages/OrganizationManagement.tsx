@@ -54,13 +54,26 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 // Types
+interface Farm {
+  id: string;
+  name: string;
+  code: string | null;
+  location: string | null;
+  manager_name: string | null;
+  description: string | null;
+  is_active: boolean | null;
+  created_at: string | null;
+}
+
 interface Department {
   id: string;
   name: string;
   code: string | null;
+  farm_id: string | null;
   manager_name: string | null;
   description: string | null;
   created_at: string | null;
+  farms?: Farm | null;
 }
 
 interface JobRole {
@@ -89,30 +102,41 @@ interface Employee {
 export default function OrganizationManagement() {
   const navigate = useNavigate();
   const { isAdmin } = useAuthContext();
-  const [activeTab, setActiveTab] = useState("departments");
+  const [activeTab, setActiveTab] = useState("farms");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
 
   // Data states
+  const [farms, setFarms] = useState<Farm[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [jobRoles, setJobRoles] = useState<JobRole[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
 
   // Dialog states
+  const [showFarmDialog, setShowFarmDialog] = useState(false);
   const [showDeptDialog, setShowDeptDialog] = useState(false);
   const [showRoleDialog, setShowRoleDialog] = useState(false);
   const [showEmployeeDialog, setShowEmployeeDialog] = useState(false);
   const [deleteDialog, setDeleteDialog] = useState<{ type: string; id: string; name: string } | null>(null);
 
   // Edit states
+  const [editingFarm, setEditingFarm] = useState<Farm | null>(null);
   const [editingDept, setEditingDept] = useState<Department | null>(null);
   const [editingRole, setEditingRole] = useState<JobRole | null>(null);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
 
+  // Form states - Farm
+  const [farmName, setFarmName] = useState("");
+  const [farmCode, setFarmCode] = useState("");
+  const [farmLocation, setFarmLocation] = useState("");
+  const [farmManager, setFarmManager] = useState("");
+  const [farmDescription, setFarmDescription] = useState("");
+
   // Form states - Department
   const [deptName, setDeptName] = useState("");
   const [deptCode, setDeptCode] = useState("");
+  const [deptFarmId, setDeptFarmId] = useState("");
   const [deptManager, setDeptManager] = useState("");
   const [deptDescription, setDeptDescription] = useState("");
 
@@ -142,14 +166,22 @@ export default function OrganizationManagement() {
 
   const fetchAll = async () => {
     setLoading(true);
-    await Promise.all([fetchDepartments(), fetchJobRoles(), fetchEmployees()]);
+    await Promise.all([fetchFarms(), fetchDepartments(), fetchJobRoles(), fetchEmployees()]);
     setLoading(false);
+  };
+
+  const fetchFarms = async () => {
+    const { data, error } = await supabase
+      .from("farms")
+      .select("*")
+      .order("name");
+    if (!error) setFarms(data || []);
   };
 
   const fetchDepartments = async () => {
     const { data, error } = await supabase
       .from("departments")
-      .select("*")
+      .select("*, farms(*)")
       .order("name");
     if (!error) setDepartments(data || []);
   };
@@ -157,7 +189,7 @@ export default function OrganizationManagement() {
   const fetchJobRoles = async () => {
     const { data, error } = await supabase
       .from("job_roles")
-      .select("*, departments(*)")
+      .select("*, departments(*, farms(*))")
       .order("name");
     if (!error) setJobRoles(data || []);
   };
@@ -170,18 +202,74 @@ export default function OrganizationManagement() {
     if (!error) setEmployees(data || []);
   };
 
+  // Farm CRUD
+  const openFarmDialog = (farm?: Farm) => {
+    if (farm) {
+      setEditingFarm(farm);
+      setFarmName(farm.name);
+      setFarmCode(farm.code || "");
+      setFarmLocation(farm.location || "");
+      setFarmManager(farm.manager_name || "");
+      setFarmDescription(farm.description || "");
+    } else {
+      setEditingFarm(null);
+      setFarmName("");
+      setFarmCode("");
+      setFarmLocation("");
+      setFarmManager("");
+      setFarmDescription("");
+    }
+    setShowFarmDialog(true);
+  };
+
+  const saveFarm = async () => {
+    if (!farmName.trim()) {
+      toast.error("Nome é obrigatório");
+      return;
+    }
+    setSaving(true);
+    try {
+      const data = {
+        name: farmName.trim(),
+        code: farmCode.trim() || null,
+        location: farmLocation.trim() || null,
+        manager_name: farmManager.trim() || null,
+        description: farmDescription.trim() || null,
+      };
+
+      if (editingFarm) {
+        const { error } = await supabase.from("farms").update(data).eq("id", editingFarm.id);
+        if (error) throw error;
+        toast.success("Fazenda atualizada!");
+      } else {
+        const { error } = await supabase.from("farms").insert(data);
+        if (error) throw error;
+        toast.success("Fazenda criada!");
+      }
+      setShowFarmDialog(false);
+      fetchFarms();
+    } catch (error) {
+      console.error(error);
+      toast.error("Erro ao salvar fazenda");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   // Department CRUD
   const openDeptDialog = (dept?: Department) => {
     if (dept) {
       setEditingDept(dept);
       setDeptName(dept.name);
       setDeptCode(dept.code || "");
+      setDeptFarmId(dept.farm_id || "");
       setDeptManager(dept.manager_name || "");
       setDeptDescription(dept.description || "");
     } else {
       setEditingDept(null);
       setDeptName("");
       setDeptCode("");
+      setDeptFarmId("");
       setDeptManager("");
       setDeptDescription("");
     }
@@ -198,6 +286,7 @@ export default function OrganizationManagement() {
       const data = {
         name: deptName.trim(),
         code: deptCode.trim() || null,
+        farm_id: deptFarmId || null,
         manager_name: deptManager.trim() || null,
         description: deptDescription.trim() || null,
       };
@@ -205,17 +294,17 @@ export default function OrganizationManagement() {
       if (editingDept) {
         const { error } = await supabase.from("departments").update(data).eq("id", editingDept.id);
         if (error) throw error;
-        toast.success("Departamento atualizado!");
+        toast.success("Setor atualizado!");
       } else {
         const { error } = await supabase.from("departments").insert(data);
         if (error) throw error;
-        toast.success("Departamento criado!");
+        toast.success("Setor criado!");
       }
       setShowDeptDialog(false);
       fetchDepartments();
     } catch (error) {
       console.error(error);
-      toast.error("Erro ao salvar departamento");
+      toast.error("Erro ao salvar setor");
     } finally {
       setSaving(false);
     }
@@ -341,7 +430,8 @@ export default function OrganizationManagement() {
     if (!deleteDialog) return;
     setSaving(true);
     try {
-      const table = deleteDialog.type === "department" ? "departments" : 
+      const table = deleteDialog.type === "farm" ? "farms" :
+                    deleteDialog.type === "department" ? "departments" : 
                     deleteDialog.type === "role" ? "job_roles" : "employees";
       const { error } = await supabase.from(table).delete().eq("id", deleteDialog.id);
       if (error) throw error;
@@ -357,6 +447,12 @@ export default function OrganizationManagement() {
   };
 
   // Filter logic
+  const filteredFarms = farms.filter(f =>
+    f.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    f.code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    f.location?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   const filteredDepartments = departments.filter(d => 
     d.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     d.code?.toLowerCase().includes(searchTerm.toLowerCase())
@@ -399,7 +495,20 @@ export default function OrganizationManagement() {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-4">
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 rounded-lg bg-emerald-500/10">
+                  <Tractor className="h-6 w-6 text-emerald-600" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{farms.length}</p>
+                  <p className="text-sm text-muted-foreground">Fazendas</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
           <Card>
             <CardContent className="pt-6">
               <div className="flex items-center gap-4">
@@ -408,7 +517,7 @@ export default function OrganizationManagement() {
                 </div>
                 <div>
                   <p className="text-2xl font-bold">{departments.length}</p>
-                  <p className="text-sm text-muted-foreground">Departamentos</p>
+                  <p className="text-sm text-muted-foreground">Setores</p>
                 </div>
               </div>
             </CardContent>
@@ -429,8 +538,8 @@ export default function OrganizationManagement() {
           <Card>
             <CardContent className="pt-6">
               <div className="flex items-center gap-4">
-                <div className="p-3 rounded-lg bg-success/10">
-                  <Users className="h-6 w-6 text-success" />
+                <div className="p-3 rounded-lg bg-blue-500/10">
+                  <Users className="h-6 w-6 text-blue-600" />
                 </div>
                 <div>
                   <p className="text-2xl font-bold">{employees.length}</p>
@@ -483,19 +592,63 @@ export default function OrganizationManagement() {
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle>Fazendas / Unidades</CardTitle>
-                  <Button size="sm" className="gap-2" onClick={() => toast.info("Use o banco de dados para gerenciar fazendas")}>
+                  <Button size="sm" className="gap-2" onClick={() => openFarmDialog()}>
                     <Plus className="h-4 w-4" />
-                    Nova
+                    Nova Fazenda
                   </Button>
                 </div>
                 <CardDescription>
-                  Gerencie as fazendas e unidades administrativas (Sede)
+                  Gerencie as fazendas e unidades administrativas
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="text-sm text-muted-foreground">
-                  Fazendas disponíveis: Sede Administrativa, Fazenda Tanguro, Fazenda Tucunaré
-                </div>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Nome</TableHead>
+                      <TableHead>Código</TableHead>
+                      <TableHead>Localização</TableHead>
+                      <TableHead>Gestor</TableHead>
+                      <TableHead>Setores</TableHead>
+                      <TableHead className="text-right">Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredFarms.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                          Nenhuma fazenda encontrada
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      filteredFarms.map((farm) => (
+                        <TableRow key={farm.id}>
+                          <TableCell className="font-medium">{farm.name}</TableCell>
+                          <TableCell>{farm.code || "-"}</TableCell>
+                          <TableCell>{farm.location || "-"}</TableCell>
+                          <TableCell>{farm.manager_name || "-"}</TableCell>
+                          <TableCell>
+                            <Badge variant="secondary">
+                              {departments.filter(d => d.farm_id === farm.id).length}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button variant="ghost" size="sm" onClick={() => openFarmDialog(farm)}>
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => setDeleteDialog({ type: "farm", id: farm.id, name: farm.name })}
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
               </CardContent>
             </Card>
           </TabsContent>
@@ -505,10 +658,10 @@ export default function OrganizationManagement() {
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
-                  <CardTitle>Departamentos</CardTitle>
+                  <CardTitle>Setores</CardTitle>
                   <Button onClick={() => openDeptDialog()} size="sm" className="gap-2">
                     <Plus className="h-4 w-4" />
-                    Novo
+                    Novo Setor
                   </Button>
                 </div>
               </CardHeader>
@@ -518,6 +671,7 @@ export default function OrganizationManagement() {
                     <TableRow>
                       <TableHead>Nome</TableHead>
                       <TableHead>Código</TableHead>
+                      <TableHead>Fazenda</TableHead>
                       <TableHead>Gestor</TableHead>
                       <TableHead>Cargos</TableHead>
                       <TableHead className="text-right">Ações</TableHead>
@@ -526,8 +680,8 @@ export default function OrganizationManagement() {
                   <TableBody>
                     {filteredDepartments.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                          Nenhum departamento encontrado
+                        <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                          Nenhum setor encontrado
                         </TableCell>
                       </TableRow>
                     ) : (
@@ -535,6 +689,7 @@ export default function OrganizationManagement() {
                         <TableRow key={dept.id}>
                           <TableCell className="font-medium">{dept.name}</TableCell>
                           <TableCell>{dept.code || "-"}</TableCell>
+                          <TableCell>{dept.farms?.name || "-"}</TableCell>
                           <TableCell>{dept.manager_name || "-"}</TableCell>
                           <TableCell>
                             <Badge variant="secondary">
@@ -716,11 +871,49 @@ export default function OrganizationManagement() {
         </Tabs>
       </div>
 
+      {/* Farm Dialog */}
+      <Dialog open={showFarmDialog} onOpenChange={setShowFarmDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editingFarm ? "Editar Fazenda" : "Nova Fazenda"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Nome *</Label>
+              <Input value={farmName} onChange={(e) => setFarmName(e.target.value)} placeholder="Ex: Fazenda Tanguro" />
+            </div>
+            <div className="space-y-2">
+              <Label>Código</Label>
+              <Input value={farmCode} onChange={(e) => setFarmCode(e.target.value)} placeholder="Ex: FZ-001" />
+            </div>
+            <div className="space-y-2">
+              <Label>Localização</Label>
+              <Input value={farmLocation} onChange={(e) => setFarmLocation(e.target.value)} placeholder="Ex: MT-322, Km 45" />
+            </div>
+            <div className="space-y-2">
+              <Label>Gestor</Label>
+              <Input value={farmManager} onChange={(e) => setFarmManager(e.target.value)} placeholder="Nome do gestor" />
+            </div>
+            <div className="space-y-2">
+              <Label>Descrição</Label>
+              <Textarea value={farmDescription} onChange={(e) => setFarmDescription(e.target.value)} rows={3} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowFarmDialog(false)}>Cancelar</Button>
+            <Button onClick={saveFarm} disabled={saving} className="gradient-primary">
+              {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Salvar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Department Dialog */}
       <Dialog open={showDeptDialog} onOpenChange={setShowDeptDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{editingDept ? "Editar Departamento" : "Novo Departamento"}</DialogTitle>
+            <DialogTitle>{editingDept ? "Editar Setor" : "Novo Setor"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
@@ -730,6 +923,19 @@ export default function OrganizationManagement() {
             <div className="space-y-2">
               <Label>Código</Label>
               <Input value={deptCode} onChange={(e) => setDeptCode(e.target.value)} placeholder="Ex: ADM-01" />
+            </div>
+            <div className="space-y-2">
+              <Label>Fazenda / Unidade</Label>
+              <Select value={deptFarmId} onValueChange={setDeptFarmId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione a fazenda" />
+                </SelectTrigger>
+                <SelectContent>
+                  {farms.map((farm) => (
+                    <SelectItem key={farm.id} value={farm.id}>{farm.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label>Gestor</Label>
