@@ -285,7 +285,7 @@ export const SidebarLink = ({
           <TooltipContent 
             side="right" 
             sideOffset={12}
-            className="bg-popover/95 backdrop-blur-sm border-border/50 shadow-lg shadow-black/20 animate-scale-in"
+            className="z-[9999] bg-popover backdrop-blur-sm border-border shadow-lg shadow-black/20 animate-scale-in"
           >
             <p className="font-medium">{link.label}</p>
           </TooltipContent>
