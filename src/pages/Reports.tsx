@@ -336,9 +336,9 @@ export default function Reports() {
                 <Badge
                   variant="outline"
                   className={
-                    report.risk_level === "alto" || report.risk_level === "critico"
+                    ["alto", "critico", "deve melhorar"].includes(report.risk_level.toLowerCase())
                       ? "bg-destructive/10 text-destructive border-destructive/20"
-                      : report.risk_level === "medio" || report.risk_level === "moderado"
+                      : ["medio", "moderado", "aceitável"].includes(report.risk_level.toLowerCase())
                       ? "bg-warning/10 text-warning border-warning/20"
                       : "bg-success/10 text-success border-success/20"
                   }
@@ -451,12 +451,12 @@ export default function Reports() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">Todos</SelectItem>
+                      <SelectItem value="satisfatório">Satisfatório</SelectItem>
+                      <SelectItem value="aceitável">Aceitável</SelectItem>
+                      <SelectItem value="deve melhorar">Deve Melhorar</SelectItem>
                       <SelectItem value="baixo">Baixo</SelectItem>
-                      <SelectItem value="adequado">Adequado</SelectItem>
                       <SelectItem value="medio">Médio</SelectItem>
-                      <SelectItem value="moderado">Moderado</SelectItem>
                       <SelectItem value="alto">Alto</SelectItem>
-                      <SelectItem value="critico">Crítico</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
