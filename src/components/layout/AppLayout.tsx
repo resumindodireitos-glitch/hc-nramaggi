@@ -27,6 +27,7 @@ import {
   Inbox,
 } from "lucide-react";
 import logoHC from "@/assets/logo-hc-new.png";
+import logoAmaggi from "@/assets/logo-amaggi-new.png";
 
 interface NavItem {
   label: string;
@@ -67,21 +68,35 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
 
   return (
     <>
-      {/* Logo */}
+      {/* Logos */}
       <div className={cn(
-        "flex items-center gap-3 py-2 mb-6",
-        open ? "px-3 justify-start" : "px-0 justify-center"
+        "flex flex-col gap-3 py-2 mb-6",
+        open ? "px-3" : "px-0 items-center"
       )}>
-        <img src={logoHC} alt="Logo" className="h-9 w-9 rounded-lg flex-shrink-0" />
+        {/* HC Logo */}
+        <div className="flex items-center gap-3">
+          <img src={logoHC} alt="HC Consultoria" className="h-9 w-9 rounded-lg flex-shrink-0" />
+          <motion.div
+            animate={{
+              display: animate ? (open ? "block" : "none") : "block",
+              opacity: animate ? (open ? 1 : 0) : 1,
+            }}
+            transition={{ duration: 0.2 }}
+          >
+            <span className="font-bold text-sidebar-foreground text-base whitespace-nowrap">HC Consultoria</span>
+            <p className="text-[10px] text-sidebar-foreground/50 -mt-0.5 whitespace-nowrap">Ergonomia & Fisioterapia</p>
+          </motion.div>
+        </div>
+        {/* Amaggi Logo */}
         <motion.div
           animate={{
-            display: animate ? (open ? "block" : "none") : "block",
+            display: animate ? (open ? "flex" : "none") : "flex",
             opacity: animate ? (open ? 1 : 0) : 1,
           }}
           transition={{ duration: 0.2 }}
+          className="flex items-center gap-2 px-1"
         >
-          <span className="font-bold text-sidebar-foreground text-base whitespace-nowrap">HC Consultoria</span>
-          <p className="text-[10px] text-sidebar-foreground/50 -mt-0.5 whitespace-nowrap">Ergonomia & Fisioterapia</p>
+          <img src={logoAmaggi} alt="Amaggi" className="h-6 object-contain" />
         </motion.div>
       </div>
 
