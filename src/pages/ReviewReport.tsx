@@ -5,9 +5,9 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
@@ -25,6 +25,7 @@ import {
   Building2,
   Briefcase,
   Clock,
+  Sparkles,
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -48,6 +49,7 @@ export default function ReviewReport() {
   const [approving, setApproving] = useState(false);
   const [generatingPdf, setGeneratingPdf] = useState(false);
   const [generatingDocx, setGeneratingDocx] = useState(false);
+  const [regenerating, setRegenerating] = useState(false);
   const [editedAnalysis, setEditedAnalysis] = useState("");
   const [editedConclusion, setEditedConclusion] = useState("");
   const [editedRecommendations, setEditedRecommendations] = useState("");
@@ -74,7 +76,9 @@ export default function ReviewReport() {
       setReport(reportData);
       setEditedAnalysis(reportData.final_text_override || reportData.ai_analysis_text || "");
       setEditedConclusion(reportData.ai_conclusion || "");
-      setEditedRecommendations((reportData.ai_recommendations || []).join("\n"));
+      // Convert recommendations array to HTML list
+      const recs = reportData.ai_recommendations || [];
+      setEditedRecommendations(recs.length > 0 ? `<ul>${recs.map(r => `<li>${r}</li>`).join('')}</ul>` : "");
     } catch (error) {
       console.error("Error fetching report:", error);
       toast.error("Erro ao carregar relatório");
@@ -89,12 +93,20 @@ export default function ReviewReport() {
     setSaving(true);
 
     try {
+      // Extract text from HTML for recommendations (strip tags and split by list items)
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = editedRecommendations;
+      const listItems = tempDiv.querySelectorAll('li');
+      const recommendations = listItems.length > 0 
+        ? Array.from(listItems).map(li => li.textContent?.trim() || '').filter(Boolean)
+        : editedRecommendations.replace(/<[^>]*>/g, '').split('\n').filter(r => r.trim());
+
       const { error } = await supabase
         .from("reports")
         .update({
           final_text_override: editedAnalysis,
           ai_conclusion: editedConclusion,
-          ai_recommendations: editedRecommendations.split("\n").filter(r => r.trim()),
+          ai_recommendations: recommendations,
         })
         .eq("id", report.id);
 
@@ -106,6 +118,29 @@ export default function ReviewReport() {
       toast.error("Erro ao salvar");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleRegenerateAnalysis = async () => {
+    if (!report) return;
+    setRegenerating(true);
+
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-narrative-report", {
+        body: { reportId: report.id },
+      });
+
+      if (error) throw error;
+      
+      if (data?.analysis) {
+        setEditedAnalysis(data.analysis);
+        toast.success("Análise regenerada com IA!");
+      }
+    } catch (error) {
+      console.error("Error regenerating analysis:", error);
+      toast.error("Erro ao regenerar análise");
+    } finally {
+      setRegenerating(false);
     }
   };
 
@@ -496,13 +531,24 @@ export default function ReviewReport() {
               </CardHeader>
               <CardContent className="pt-4 space-y-6">
                 <div className="space-y-3">
-                  <Label className="text-sm font-medium">Texto de Análise</Label>
-                  <Textarea
-                    value={editedAnalysis}
-                    onChange={(e) => setEditedAnalysis(e.target.value)}
-                    rows={12}
-                    className="resize-none bg-muted/30 border-muted focus:border-primary/50"
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm font-medium">Texto de Análise</Label>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleRegenerateAnalysis}
+                      disabled={regenerating}
+                      className="h-7 gap-1.5 text-xs"
+                    >
+                      {regenerating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+                      Regerar IA
+                    </Button>
+                  </div>
+                  <RichTextEditor
+                    content={editedAnalysis}
+                    onChange={setEditedAnalysis}
                     placeholder="Digite a análise do relatório..."
+                    className="min-h-[300px]"
                   />
                 </div>
 
@@ -510,12 +556,11 @@ export default function ReviewReport() {
 
                 <div className="space-y-3">
                   <Label className="text-sm font-medium">Conclusão</Label>
-                  <Textarea
-                    value={editedConclusion}
-                    onChange={(e) => setEditedConclusion(e.target.value)}
-                    rows={4}
-                    className="resize-none bg-muted/30 border-muted focus:border-primary/50"
+                  <RichTextEditor
+                    content={editedConclusion}
+                    onChange={setEditedConclusion}
                     placeholder="Digite a conclusão..."
+                    className="min-h-[150px]"
                   />
                 </div>
 
@@ -523,13 +568,12 @@ export default function ReviewReport() {
 
                 <div className="space-y-3">
                   <Label className="text-sm font-medium">Recomendações</Label>
-                  <p className="text-xs text-muted-foreground">Uma recomendação por linha</p>
-                  <Textarea
-                    value={editedRecommendations}
-                    onChange={(e) => setEditedRecommendations(e.target.value)}
-                    rows={6}
-                    className="resize-none bg-muted/30 border-muted focus:border-primary/50"
+                  <p className="text-xs text-muted-foreground">Use listas ou parágrafos para cada recomendação</p>
+                  <RichTextEditor
+                    content={editedRecommendations}
+                    onChange={setEditedRecommendations}
                     placeholder="• Recomendação 1&#10;• Recomendação 2&#10;• Recomendação 3"
+                    className="min-h-[180px]"
                   />
                 </div>
               </CardContent>
