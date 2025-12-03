@@ -6,6 +6,17 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// HTML escape function to prevent XSS
+function escapeHtml(str: string | null | undefined): string {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -20,6 +31,47 @@ serve(async (req) => {
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+
+    // === AUTHORIZATION CHECK ===
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: "Authorization header required" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Verify user has access to this report via RLS
+    const userClient = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } }
+    });
+
+    const { data: { user }, error: userError } = await userClient.auth.getUser();
+    if (userError || !user) {
+      return new Response(
+        JSON.stringify({ error: "Invalid or expired token" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Check if user can access this report (RLS will filter)
+    const { data: reportAccess, error: accessError } = await userClient
+      .from("reports")
+      .select("id")
+      .eq("id", reportId)
+      .single();
+
+    if (accessError || !reportAccess) {
+      return new Response(
+        JSON.stringify({ error: "Unauthorized: You don't have access to this report" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    console.log("User authorized to access report:", reportId);
+    // === END AUTHORIZATION CHECK ===
+
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     // Fetch report with all details
@@ -38,13 +90,19 @@ serve(async (req) => {
     const respondentData = submission?.respondent_data || {};
     const answers = submission?.answers || {};
 
-    // Get respondent info
-    const respondentName = (respondentData as any).full_name || "Anônimo";
-    const respondentDept = (respondentData as any).department || "";
-    const respondentJob = (respondentData as any).job_title || "";
+    // Get respondent info - ESCAPED to prevent XSS
+    const respondentName = escapeHtml((respondentData as any).full_name) || "Anônimo";
+    const respondentDept = escapeHtml((respondentData as any).department) || "";
+    const respondentJob = escapeHtml((respondentData as any).job_title) || "";
 
     // Format date
     const reportDate = new Date(report.created_at || new Date()).toLocaleDateString("pt-BR");
+
+    // Escape AI-generated content to prevent XSS
+    const analysisText = escapeHtml(report.final_text_override || report.ai_analysis_text) || "Análise não disponível";
+    const conclusionText = escapeHtml(report.ai_conclusion);
+    const riskLevel = escapeHtml(report.risk_level) || "baixo";
+    const formType = escapeHtml(form?.type);
 
     // Generate PDF content as HTML
     const htmlContent = `
@@ -106,12 +164,12 @@ serve(async (req) => {
       </div>
       <div class="info-item">
         <div class="info-label">Tipo de Avaliação</div>
-        <div class="info-value">${form?.type === "ergos" ? "ERGOS (Operacional)" : "HSE-IT (Administrativo)"}</div>
+        <div class="info-value">${formType === "ergos" ? "ERGOS (Operacional)" : "HSE-IT (Administrativo)"}</div>
       </div>
       <div class="info-item">
         <div class="info-label">Nível de Risco</div>
         <div class="info-value">
-          <span class="risk-badge risk-${report.risk_level?.toLowerCase() || "baixo"}">${report.risk_level || "N/A"}</span>
+          <span class="risk-badge risk-${riskLevel.toLowerCase()}">${riskLevel}</span>
         </div>
       </div>
     </div>
@@ -124,12 +182,12 @@ serve(async (req) => {
       .map(
         ([dim, score]) => `
       <div class="dimension-row">
-        <span>${dim}</span>
+        <span>${escapeHtml(dim)}</span>
         <div style="display: flex; align-items: center; gap: 10px;">
           <div class="dimension-bar">
             <div class="dimension-fill" style="width: ${Math.min(100, Number(score))}%"></div>
           </div>
-          <span style="font-weight: bold; width: 40px;">${score}</span>
+          <span style="font-weight: bold; width: 40px;">${escapeHtml(String(score))}</span>
         </div>
       </div>
     `
@@ -140,13 +198,13 @@ serve(async (req) => {
 
   <div class="section">
     <div class="section-title">Análise Detalhada</div>
-    <div class="analysis-text">${report.final_text_override || report.ai_analysis_text || "Análise não disponível"}</div>
+    <div class="analysis-text">${analysisText}</div>
   </div>
 
-  ${report.ai_conclusion ? `
+  ${conclusionText ? `
   <div class="section">
     <div class="section-title">Conclusão</div>
-    <div class="conclusion">${report.ai_conclusion}</div>
+    <div class="conclusion">${conclusionText}</div>
   </div>
   ` : ""}
 
@@ -155,7 +213,7 @@ serve(async (req) => {
     <div class="section-title">Recomendações</div>
     ${report.ai_recommendations.map((rec: string, i: number) => `
       <div class="recommendation">
-        <strong>${i + 1}.</strong> ${rec}
+        <strong>${i + 1}.</strong> ${escapeHtml(rec)}
       </div>
     `).join("")}
   </div>
@@ -170,7 +228,7 @@ serve(async (req) => {
 </html>
     `;
 
-    // Convert HTML to base64 (simplified - in production use a proper PDF library)
+    // Convert HTML to base64
     const encoder = new TextEncoder();
     const htmlBytes = encoder.encode(htmlContent);
     const base64 = btoa(String.fromCharCode(...htmlBytes));
@@ -180,7 +238,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         pdf: base64,
-        contentType: "text/html", // For now returning HTML, frontend can print to PDF
+        contentType: "text/html",
         filename: `relatorio-${respondentName.replace(/\s+/g, "-")}.html`
       }),
       {
