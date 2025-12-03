@@ -107,18 +107,34 @@ export default function ReportDetail() {
     }
   };
 
-  const getDimensionScores = (scores: Json): Array<[string, number, string | null]> => {
-    if (typeof scores === "object" && scores !== null && !Array.isArray(scores)) {
-      return Object.entries(scores as Record<string, unknown>).map(([key, value]) => {
-        // Handle both formats: plain number or object {score, risk_color}
-        if (typeof value === "object" && value !== null && "score" in value) {
-          const obj = value as { score: number; risk_color?: string };
-          return [key, obj.score, obj.risk_color || null];
-        }
-        return [key, Number(value) || 0, null];
-      });
+  const getDimensionScores = (scores: Json): Array<{ name: string; score: number; status: string; color: string }> => {
+    if (typeof scores !== "object" || scores === null) return [];
+    
+    const data = scores as Record<string, any>;
+    
+    // If has dimensions array, use it directly (new universal format)
+    if (data.dimensions && Array.isArray(data.dimensions)) {
+      return data.dimensions.map((dim: any) => ({
+        name: dim.name,
+        score: Math.round(dim.normalized_score ?? dim.score ?? 0),
+        status: dim.status || "N/A",
+        color: dim.color || "yellow"
+      }));
     }
-    return [];
+    
+    // Fallback for legacy format - filter out metadata fields
+    const excludeKeys = ['blocos', 'global_score', 'risk_level', 'risk_label', 
+                         'risk_color', 'risk_description', 'calculation_method', 
+                         'calculated_at', 'dimensions'];
+    
+    return Object.entries(data)
+      .filter(([key]) => !excludeKeys.includes(key))
+      .map(([name, value]) => ({
+        name,
+        score: Math.round(typeof value === 'object' ? ((value as any).normalized_score ?? (value as any).score ?? 0) : Number(value) || 0),
+        status: typeof value === 'object' ? (value as any).status || 'N/A' : 'N/A',
+        color: typeof value === 'object' ? (value as any).color || 'yellow' : 'yellow'
+      }));
   };
 
   if (loading) {
@@ -215,23 +231,23 @@ export default function ReportDetail() {
                   Pontuação por Dimensão
                 </h3>
                 <div className="grid gap-3 md:grid-cols-2">
-                  {getDimensionScores(report.dimensions_score).map(([dimension, score, riskColor]) => (
+                  {getDimensionScores(report.dimensions_score).map((dim) => (
                     <div
-                      key={dimension}
+                      key={dim.name}
                       className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
                     >
-                      <span className="text-sm font-medium">{dimension}</span>
+                      <span className="text-sm font-medium">{dim.name}</span>
                       <Badge
                         variant="outline"
                         className={
-                          riskColor === "verde" || score >= 80
+                          dim.color === "green" || dim.score <= 30
                             ? "bg-success/10 text-success border-success/20"
-                            : riskColor === "amarelo" || score >= 50
+                            : dim.color === "yellow" || dim.score <= 60
                             ? "bg-warning/10 text-warning border-warning/20"
                             : "bg-destructive/10 text-destructive border-destructive/20"
                         }
                       >
-                        {score}%
+                        {dim.score}%
                       </Badge>
                     </div>
                   ))}

@@ -135,19 +135,27 @@ export default function ReviewReport() {
     setRegenerating(true);
 
     try {
+      console.log("Calling generate-narrative-report for:", report.id);
+      
       const { data, error } = await supabase.functions.invoke("generate-narrative-report", {
         body: { reportId: report.id },
       });
 
+      console.log("Response:", data, error);
+
       if (error) throw error;
       
-      if (data?.analysis) {
-        setEditedAnalysis(data.analysis);
+      // Response returns "narrative" not "analysis"
+      if (data?.narrative) {
+        setEditedAnalysis(data.narrative);
         toast.success("Análise regenerada com IA!");
+        fetchReport(); // Reload to see saved text
+      } else {
+        toast.warning("Nenhum texto gerado pela IA");
       }
     } catch (error) {
       console.error("Error regenerating analysis:", error);
-      toast.error("Erro ao regenerar análise");
+      toast.error("Erro ao regenerar análise: " + (error as Error).message);
     } finally {
       setRegenerating(false);
     }
@@ -255,17 +263,34 @@ export default function ReviewReport() {
     return {};
   };
 
-  const getDimensionScores = (scores: Json): Array<[string, number]> => {
-    if (typeof scores === "object" && scores !== null && !Array.isArray(scores)) {
-      return Object.entries(scores as Record<string, unknown>).map(([key, value]) => {
-        // Handle both plain numbers and objects with {score, risk_color}
-        if (typeof value === "object" && value !== null && "score" in value) {
-          return [key, (value as { score: number }).score];
-        }
-        return [key, typeof value === "number" ? value : 0];
-      });
+  const getDimensionScores = (scores: Json): Array<{ name: string; score: number; status: string; color: string }> => {
+    if (typeof scores !== "object" || scores === null) return [];
+    
+    const data = scores as Record<string, any>;
+    
+    // If has dimensions array, use it directly (new universal format)
+    if (data.dimensions && Array.isArray(data.dimensions)) {
+      return data.dimensions.map((dim: any) => ({
+        name: dim.name,
+        score: Math.round(dim.normalized_score ?? dim.score ?? 0),
+        status: dim.status || "N/A",
+        color: dim.color || "yellow"
+      }));
     }
-    return [];
+    
+    // Fallback for legacy format - filter out metadata fields
+    const excludeKeys = ['blocos', 'global_score', 'risk_level', 'risk_label', 
+                         'risk_color', 'risk_description', 'calculation_method', 
+                         'calculated_at', 'dimensions'];
+    
+    return Object.entries(data)
+      .filter(([key]) => !excludeKeys.includes(key))
+      .map(([name, value]) => ({
+        name,
+        score: Math.round(typeof value === 'object' ? ((value as any).normalized_score ?? (value as any).score ?? 0) : Number(value) || 0),
+        status: typeof value === 'object' ? (value as any).status || 'N/A' : 'N/A',
+        color: typeof value === 'object' ? (value as any).color || 'yellow' : 'yellow'
+      }));
   };
 
   const getRiskColor = (risk: string | null) => {
