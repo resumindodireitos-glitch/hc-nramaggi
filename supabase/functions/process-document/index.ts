@@ -64,25 +64,22 @@ async function extractText(fileBuffer: ArrayBuffer, fileType: string): Promise<s
   const uint8Array = new Uint8Array(fileBuffer);
   
   // For text files, decode directly
-  if (fileType === 'text/plain' || fileType === 'text/csv') {
+  if (fileType === 'text/plain' || fileType === 'text/csv' || fileType.includes('text')) {
     const decoder = new TextDecoder('utf-8');
     return decoder.decode(uint8Array);
   }
   
   // For PDF files, use a simple text extraction
-  if (fileType === 'application/pdf') {
-    // Basic PDF text extraction - looks for text streams
+  if (fileType === 'application/pdf' || fileType.includes('pdf')) {
     const decoder = new TextDecoder('utf-8', { fatal: false });
     const pdfText = decoder.decode(uint8Array);
     
-    // Extract text between stream markers (simplified)
     const textParts: string[] = [];
     const streamRegex = /stream\s*\n([\s\S]*?)\nendstream/g;
     let match;
     
     while ((match = streamRegex.exec(pdfText)) !== null) {
       const content = match[1];
-      // Look for text showing operators
       const tjRegex = /\[(.*?)\]\s*TJ/g;
       let tjMatch;
       while ((tjMatch = tjRegex.exec(content)) !== null) {
@@ -95,14 +92,12 @@ async function extractText(fileBuffer: ArrayBuffer, fileType: string): Promise<s
       }
     }
     
-    // Fallback: extract readable text from the raw file
     if (textParts.length === 0) {
       const cleanText = pdfText
         .replace(/[^\x20-\x7E\n\r\t]/g, ' ')
         .replace(/\s+/g, ' ')
         .trim();
       
-      // Find readable sentences
       const sentences = cleanText.match(/[A-Za-z][^.!?]*[.!?]/g) || [];
       return sentences.join(' ').slice(0, 50000);
     }
@@ -110,13 +105,13 @@ async function extractText(fileBuffer: ArrayBuffer, fileType: string): Promise<s
     return textParts.join(' ').slice(0, 50000);
   }
   
-  // For Office documents, return a message to use external parsing
-  if (fileType.includes('officedocument') || fileType.includes('msword') || fileType.includes('ms-excel')) {
-    // Basic extraction for Office files - get text content where possible
+  // For Office documents
+  if (fileType.includes('officedocument') || fileType.includes('msword') || 
+      fileType.includes('ms-excel') || fileType.includes('docx') || 
+      fileType.includes('xlsx') || fileType.includes('spreadsheet')) {
     const decoder = new TextDecoder('utf-8', { fatal: false });
     const rawText = decoder.decode(uint8Array);
     
-    // Extract text between XML tags for docx/xlsx
     const textContent = rawText
       .replace(/<[^>]+>/g, ' ')
       .replace(/[^\x20-\x7E\n\r\táàâãéèêíìîóòôõúùûçÁÀÂÃÉÈÊÍÌÎÓÒÔÕÚÙÛÇ]/g, ' ')
@@ -129,13 +124,51 @@ async function extractText(fileBuffer: ArrayBuffer, fileType: string): Promise<s
   throw new Error(`Unsupported file type: ${fileType}`);
 }
 
+// Try multiple storage paths
+async function downloadFromStorage(
+  supabase: any, 
+  bucketName: string, 
+  filePath: string
+): Promise<{ data: Blob | null; error: any; usedPath: string }> {
+  // Generate all possible path variations
+  const pathVariations = [
+    filePath,
+    filePath.replace('knowledge-docs/', ''),
+    `documents/${filePath.split('/').pop()}`,
+    filePath.split('/').pop() || filePath,
+  ];
+  
+  console.log("Trying path variations:", pathVariations);
+  
+  for (const path of pathVariations) {
+    console.log(`Attempting download from: ${bucketName}/${path}`);
+    
+    const { data, error } = await supabase.storage
+      .from(bucketName)
+      .download(path);
+    
+    if (data && !error) {
+      console.log(`Successfully downloaded from: ${path}`);
+      return { data, error: null, usedPath: path };
+    }
+    
+    console.log(`Failed to download from ${path}:`, error?.message || 'Unknown error');
+  }
+  
+  return { 
+    data: null, 
+    error: new Error(`File not found in any path variation: ${pathVariations.join(', ')}`),
+    usedPath: filePath 
+  };
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { documentId } = await req.json();
+    const { documentId, textContent } = await req.json();
 
     if (!documentId) {
       return new Response(
@@ -190,12 +223,12 @@ serve(async (req) => {
 
     if (docError || !document) {
       return new Response(
-        JSON.stringify({ error: "Document not found" }),
+        JSON.stringify({ error: "Document not found in database" }),
         { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    console.log("Processing document:", document.name);
+    console.log("Processing document:", document.name, "| Path:", document.file_path, "| Type:", document.file_type);
 
     // Update status to processing
     await supabase
@@ -203,89 +236,82 @@ serve(async (req) => {
       .update({ status: "processing" })
       .eq("id", documentId);
 
-    // Download file from storage
-    console.log("Attempting to download file from path:", document.file_path);
-    
-    let downloadedFile: Blob | null = null;
-    
-    const { data: fileData, error: fileError } = await supabase.storage
-      .from("knowledge-base")
-      .download(document.file_path);
+    let extractedText: string;
 
-    if (fileError || !fileData) {
-      console.error("File download error:", fileError);
-      
-      // Try alternative path if original fails
-      const altPath = document.file_path.replace('knowledge-docs/', 'documents/');
-      console.log("Trying alternative path:", altPath);
-      
-      const { data: altData, error: altError } = await supabase.storage
-        .from("knowledge-base")
-        .download(altPath);
-        
-      if (altError || !altData) {
-        console.error("Alternative path also failed:", altError);
+    // Check if text content was provided directly (for manual processing)
+    if (textContent && typeof textContent === 'string' && textContent.length > 100) {
+      console.log("Using provided text content directly");
+      extractedText = textContent;
+    } else {
+      // Download file from storage
+      const { data: fileData, error: fileError, usedPath } = await downloadFromStorage(
+        supabase,
+        "knowledge-base",
+        document.file_path
+      );
+
+      if (fileError || !fileData) {
+        console.error("All download attempts failed:", fileError);
         
         await supabase
           .from("knowledge_documents")
           .update({ 
             status: "error", 
             metadata: { 
-              error: "File not found in storage. Please re-upload the document.",
-              original_path: document.file_path
+              error: "Arquivo não encontrado no storage. Por favor, faça upload novamente.",
+              attempted_path: document.file_path
             } 
           })
           .eq("id", documentId);
         
         return new Response(
-          JSON.stringify({ error: "File not found in storage. Please re-upload the document." }),
+          JSON.stringify({ 
+            error: "Arquivo não encontrado no storage. Por favor, faça upload novamente.",
+            details: `Tentou: ${document.file_path}`
+          }),
           { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-      
-      // Update the path in database if alternative worked
-      await supabase
-        .from("knowledge_documents")
-        .update({ file_path: altPath })
-        .eq("id", documentId);
+
+      // Update path if different was used
+      if (usedPath !== document.file_path) {
+        await supabase
+          .from("knowledge_documents")
+          .update({ file_path: usedPath })
+          .eq("id", documentId);
+      }
+
+      // Extract text from file
+      try {
+        const buffer = await fileData.arrayBuffer();
+        extractedText = await extractText(buffer, document.file_type);
+        console.log(`Extracted ${extractedText.length} characters from ${document.name}`);
+      } catch (extractError) {
+        console.error("Text extraction error:", extractError);
+        const errMsg = extractError instanceof Error ? extractError.message : "Unknown error";
+        await supabase
+          .from("knowledge_documents")
+          .update({ 
+            status: "error", 
+            metadata: { error: `Extração de texto falhou: ${errMsg}` } 
+          })
+          .eq("id", documentId);
         
-      downloadedFile = altData;
-      console.log("Successfully downloaded from alternative path");
-    } else {
-      downloadedFile = fileData;
+        return new Response(
+          JSON.stringify({ error: "Falha na extração de texto", details: errMsg }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
     }
 
-    // Extract text from file
-    let extractedText: string;
-    try {
-      const buffer = await downloadedFile.arrayBuffer();
-      extractedText = await extractText(buffer, document.file_type);
-      console.log(`Extracted ${extractedText.length} characters from ${document.name}`);
-    } catch (extractError) {
-      console.error("Text extraction error:", extractError);
-      const errMsg = extractError instanceof Error ? extractError.message : "Unknown error";
+    if (!extractedText || extractedText.length < 50) {
       await supabase
         .from("knowledge_documents")
-        .update({ 
-          status: "error", 
-          metadata: { error: `Text extraction failed: ${errMsg}` } 
-        })
+        .update({ status: "error", metadata: { error: "Nenhum conteúdo de texto extraído" } })
         .eq("id", documentId);
       
       return new Response(
-        JSON.stringify({ error: "Text extraction failed" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    if (!extractedText || extractedText.length < 100) {
-      await supabase
-        .from("knowledge_documents")
-        .update({ status: "error", metadata: { error: "No text content extracted" } })
-        .eq("id", documentId);
-      
-      return new Response(
-        JSON.stringify({ error: "No text content could be extracted from the document" }),
+        JSON.stringify({ error: "Não foi possível extrair conteúdo de texto do documento" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -302,7 +328,8 @@ serve(async (req) => {
 
     // Process chunks and generate embeddings
     let processedCount = 0;
-    const batchSize = 5;
+    let errorCount = 0;
+    const batchSize = 3;
 
     for (let i = 0; i < chunks.length; i += batchSize) {
       const batch = chunks.slice(i, i + batchSize);
@@ -325,6 +352,7 @@ serve(async (req) => {
           };
         } catch (embError) {
           console.error(`Embedding error for chunk ${chunkIndex}:`, embError);
+          errorCount++;
           return null;
         }
       });
@@ -346,30 +374,33 @@ serve(async (req) => {
 
       // Small delay to avoid rate limits
       if (i + batchSize < chunks.length) {
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise(resolve => setTimeout(resolve, 1000));
       }
     }
 
     // Update document status
+    const finalStatus = processedCount > 0 ? "completed" : "error";
     await supabase
       .from("knowledge_documents")
       .update({
-        status: "completed",
+        status: finalStatus,
         chunks_count: processedCount,
         metadata: {
           original_length: extractedText.length,
-          processed_at: new Date().toISOString()
+          processed_at: new Date().toISOString(),
+          errors: errorCount > 0 ? `${errorCount} chunks failed` : undefined
         }
       })
       .eq("id", documentId);
 
-    console.log(`Document processing completed: ${processedCount} chunks created`);
+    console.log(`Document processing completed: ${processedCount} chunks created, ${errorCount} errors`);
 
     return new Response(
       JSON.stringify({ 
         success: true, 
         chunks_created: processedCount,
-        text_length: extractedText.length
+        text_length: extractedText.length,
+        errors: errorCount
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
