@@ -11,21 +11,21 @@ interface UserWithRoles extends Profile {
 }
 
 export function useAuth() {
+  // All useState hooks first - always in same order
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<UserWithRoles | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // useCallback hook
   const fetchProfile = useCallback(async (userId: string, userEmail?: string, userName?: string) => {
     try {
-      // Fetch profile
       const { data: profileData, error: profileError } = await supabase
         .from("profiles")
         .select("*")
         .eq("id", userId)
         .maybeSingle();
 
-      // If profile doesn't exist, create it (fallback for trigger failure)
       if (!profileData && !profileError) {
         console.warn("Profile not found, attempting to create...");
         
@@ -48,16 +48,13 @@ export function useAuth() {
           return;
         }
 
-        // Also create user_roles entry
         await supabase
           .from("user_roles")
           .insert({
             user_id: userId,
             role: "employee_amaggi" as const
-          })
-          .single();
+          });
 
-        // Fetch roles
         const { data: rolesData } = await supabase
           .from("user_roles")
           .select("role")
@@ -78,7 +75,6 @@ export function useAuth() {
         return;
       }
 
-      // Fetch roles from user_roles table
       const { data: rolesData, error: rolesError } = await supabase
         .from("user_roles")
         .select("role")
@@ -102,38 +98,51 @@ export function useAuth() {
     }
   }, []);
 
+  // useEffect hook - always runs
   useEffect(() => {
     let mounted = true;
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!mounted) return;
-      
-      setSession(session);
-      setUser(session?.user ?? null);
-      
-      if (session?.user) {
-        const email = session.user.email;
-        const name = session.user.user_metadata?.full_name;
-        setTimeout(() => {
-          if (mounted) fetchProfile(session.user.id, email, name);
-        }, 0);
-      } else {
-        setLoading(false);
-      }
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
+    const initAuth = async () => {
+      try {
+        const { data: { session: currentSession } } = await supabase.auth.getSession();
+        
         if (!mounted) return;
         
-        setSession(session);
-        setUser(session?.user ?? null);
+        setSession(currentSession);
+        setUser(currentSession?.user ?? null);
         
-        if (session?.user) {
-          const email = session.user.email;
-          const name = session.user.user_metadata?.full_name;
+        if (currentSession?.user) {
+          const email = currentSession.user.email;
+          const name = currentSession.user.user_metadata?.full_name;
+          await fetchProfile(currentSession.user.id, email, name);
+        } else {
+          setLoading(false);
+        }
+      } catch (error) {
+        console.error("Error initializing auth:", error);
+        if (mounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    initAuth();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, newSession) => {
+        if (!mounted) return;
+        
+        setSession(newSession);
+        setUser(newSession?.user ?? null);
+        
+        if (newSession?.user) {
+          const email = newSession.user.email;
+          const name = newSession.user.user_metadata?.full_name;
+          // Use setTimeout to avoid potential Supabase deadlock
           setTimeout(() => {
-            if (mounted) fetchProfile(session.user.id, email, name);
+            if (mounted) {
+              fetchProfile(newSession.user.id, email, name);
+            }
           }, 0);
         } else {
           setProfile(null);
@@ -148,12 +157,14 @@ export function useAuth() {
     };
   }, [fetchProfile]);
 
-  const signIn = async (email: string, password: string) => {
+  // Sign in function
+  const signIn = useCallback(async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     return { error };
-  };
+  }, []);
 
-  const signUp = async (
+  // Sign up function
+  const signUp = useCallback(async (
     email: string, 
     password: string, 
     fullName: string, 
@@ -168,19 +179,15 @@ export function useAuth() {
       },
     });
 
-    // If signup was successful and we got a user, ensure profile exists
     if (!error && data.user) {
-      // Wait a moment for trigger to execute
       await new Promise(resolve => setTimeout(resolve, 500));
       
-      // Check if profile was created by trigger
       const { data: existingProfile } = await supabase
         .from("profiles")
         .select("id")
         .eq("id", data.user.id)
         .maybeSingle();
 
-      // If trigger failed, create profile manually
       if (!existingProfile) {
         await supabase.from("profiles").insert({
           id: data.user.id,
@@ -199,28 +206,28 @@ export function useAuth() {
     }
 
     return { error };
-  };
+  }, []);
 
-  const signOut = async () => {
+  // Sign out function
+  const signOut = useCallback(async () => {
     setProfile(null);
     const { error } = await supabase.auth.signOut();
     return { error };
-  };
+  }, []);
 
-  // Check if user is admin (either admin_hc in profile or has admin role in user_roles)
+  // Refresh profile function
+  const refreshProfile = useCallback(async () => {
+    if (user) {
+      await fetchProfile(user.id, user.email, user.user_metadata?.full_name);
+    }
+  }, [user, fetchProfile]);
+
+  // Computed values
   const isAdmin = profile?.role === "admin_hc" || 
                   profile?.appRoles?.includes("admin_hc") || 
                   profile?.appRoles?.includes("super_admin");
   
-  // Check if user is super admin (only from user_roles table)
-  const isSuperAdmin = profile?.appRoles?.includes("super_admin");
-
-  // Function to refresh profile
-  const refreshProfile = async () => {
-    if (user) {
-      await fetchProfile(user.id, user.email, user.user_metadata?.full_name);
-    }
-  };
+  const isSuperAdmin = profile?.appRoles?.includes("super_admin") || false;
 
   return {
     user,
