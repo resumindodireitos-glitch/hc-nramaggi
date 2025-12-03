@@ -27,6 +27,7 @@ import {
   Inbox,
   Activity,
   AlertTriangle,
+  PieChart,
 } from "lucide-react";
 import logoHC from "@/assets/logo-hc-new.png";
 import { AppHeader } from "./AppHeader";
@@ -43,6 +44,7 @@ const navItems: NavItem[] = [
   { label: "Formulários", href: "/forms", icon: <ClipboardList className="h-5 w-5" /> },
   { label: "Minhas Submissões", href: "/submissions", icon: <FileText className="h-5 w-5" /> },
   { label: "Relatórios", href: "/reports", icon: <BarChart3 className="h-5 w-5" />, adminOnly: true },
+  { label: "Relatórios Agregados", href: "/admin/aggregated-reports", icon: <PieChart className="h-5 w-5" />, adminOnly: true },
   { label: "Submissões (Admin)", href: "/admin/submissions", icon: <Inbox className="h-5 w-5" />, adminOnly: true },
   { label: "Organização", href: "/admin/organization", icon: <Building2 className="h-5 w-5" />, adminOnly: true },
   { label: "Gerenciar Forms", href: "/admin/forms", icon: <Settings className="h-5 w-5" />, adminOnly: true },
