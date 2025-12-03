@@ -21,7 +21,7 @@ import {
   ScrollText,
   Inbox,
 } from "lucide-react";
-import logoHC from "@/assets/logo-hc.jpg";
+import logoHC from "@/assets/logo-hc-new.png";
 
 interface NavItem {
   label: string;
@@ -69,7 +69,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         </Button>
         <div className="flex items-center gap-2">
           <img src={logoHC} alt="Logo" className="h-8 w-auto rounded-lg" />
-          <span className="font-semibold text-sm">ERGOS AI</span>
+          <span className="font-semibold text-sm">HC Consultoria</span>
         </div>
         <div className="w-10" />
       </header>
@@ -96,8 +96,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             <div className="flex items-center gap-3">
               <img src={logoHC} alt="Logo" className="h-9 w-auto rounded-lg" />
               <div>
-                <span className="font-bold text-white text-base">ERGOS AI</span>
-                <p className="text-[10px] text-white/50 -mt-0.5">Plataforma Ergonômica</p>
+                <span className="font-bold text-white text-base">HC Consultoria</span>
+                <p className="text-[10px] text-white/50 -mt-0.5">Ergonomia & Fisioterapia</p>
               </div>
             </div>
             <Button
