@@ -33,9 +33,74 @@ function getRiskLevel(score: number, levels: RiskThresholds["levels"]): { level:
   return { level: last.level, label: last.label, color: last.color, description: last.description };
 }
 
-// ERGOS: Soma de pesos com coeficiente 0.83
+// Detecta formato da submissão: legacy (antigo) ou modern (novo)
+function detectSubmissionFormat(answers: Record<string, any>): 'legacy' | 'modern' {
+  const keys = Object.keys(answers);
+  
+  const legacyDimensionKeys = [
+    'pressao_tempo', 'atencao', 'complexidade', 'monotonia', 'raciocinio',
+    'iniciativa', 'isolamento', 'horarios', 'relacionamentos', 'demandas_gerais',
+    'demandas', 'controle', 'apoio_chefia', 'apoio_colegas', 'cargo', 'mudancas'
+  ];
+  
+  for (const key of keys) {
+    const lowerKey = key.toLowerCase().replace(/ /g, '_');
+    if (legacyDimensionKeys.includes(lowerKey)) {
+      const val = answers[key];
+      if (typeof val === 'number' || (typeof val === 'string' && !isNaN(parseFloat(val)) && val.length < 5)) {
+        return 'legacy';
+      }
+    }
+  }
+  
+  return 'modern';
+}
+
+// ERGOS Legacy
+function calculateERGOS_Legacy(answers: Record<string, any>, thresholds: RiskThresholds) {
+  const dimensionMapping: Record<string, { name: string; bloco: string }> = {
+    'pressao_tempo': { name: 'Pressão de Tempo', bloco: 'A' },
+    'atencao': { name: 'Atenção', bloco: 'A' },
+    'complexidade': { name: 'Complexidade', bloco: 'A' },
+    'monotonia': { name: 'Monotonia', bloco: 'A' },
+    'raciocinio': { name: 'Raciocínio', bloco: 'A' },
+    'iniciativa': { name: 'Iniciativa', bloco: 'B' },
+    'isolamento': { name: 'Isolamento', bloco: 'B' },
+    'horarios': { name: 'Horários e Turnos', bloco: 'B' },
+    'relacionamentos': { name: 'Relacionamentos', bloco: 'B' },
+    'demandas_gerais': { name: 'Demandas Gerais', bloco: 'B' }
+  };
+  
+  const dimensions: any[] = [];
+  let totalA = 0, totalB = 0, countA = 0, countB = 0;
+  
+  for (const [key, val] of Object.entries(answers)) {
+    const normalizedKey = key.toLowerCase().replace(/ /g, '_');
+    const mapping = dimensionMapping[normalizedKey];
+    if (!mapping) continue;
+    
+    const numVal = typeof val === 'number' ? val : parseFloat(val);
+    if (isNaN(numVal)) continue;
+    
+    const normalized = Math.round((numVal / 10) * 100);
+    const { status, color } = getDimensionStatus(normalized, thresholds.dimension_thresholds);
+    
+    dimensions.push({ name: mapping.name, score: numVal, normalized_score: normalized, status, color, bloco: mapping.bloco });
+    
+    if (mapping.bloco === 'A') { totalA += numVal; countA++; }
+    else { totalB += numVal; countB++; }
+  }
+  
+  const rawScore = 0.83 * (totalA + totalB);
+  const maxTheoretical = 83;
+  const normalizedGlobal = Math.min(100, Math.round((rawScore / maxTheoretical) * 100));
+  const risk = getRiskLevel(normalizedGlobal, thresholds.levels);
+  
+  return { global_score: normalizedGlobal, risk_level: risk.level, risk_label: risk.label, risk_color: risk.color, risk_description: risk.description, dimensions, blocos: { A: { total: totalA, count: countA, name: "Fatores Cognitivos" }, B: { total: totalB, count: countB, name: "Fatores Organizacionais" } }, calculation_method: "ergos_legacy", calculated_at: new Date().toISOString() };
+}
+
+// ERGOS Modern
 function calculateERGOS_Weighted(answers: Record<string, any>, schema: any[], rules: CalculationRules, thresholds: RiskThresholds) {
-  console.log("=== ERGOS WEIGHTED ===");
   const coefficient = rules.coefficient || 0.83;
   const questionMap: Record<string, any> = {};
   schema.forEach((item: any) => { if (item.type === "weighted_radio" && item.id) questionMap[item.id] = item; });
@@ -79,9 +144,40 @@ function calculateERGOS_Weighted(answers: Record<string, any>, schema: any[], ru
   return { global_score: normalizedGlobal, risk_level: risk.level, risk_label: risk.label, risk_color: risk.color, risk_description: risk.description, dimensions, blocos: { A: { total: totalA, name: "Fatores Cognitivos" }, B: { total: totalB, name: "Fatores Organizacionais" } }, calculation_method: "ergos_weighted", calculated_at: new Date().toISOString() };
 }
 
-// HSE-IT: Porcentagem de questões estressoras
+// HSE-IT Legacy
+function calculateHSEIT_Legacy(answers: Record<string, any>, thresholds: RiskThresholds) {
+  const dimensionMapping: Record<string, string> = {
+    'demandas': 'Demandas', 'controle': 'Controle', 'apoio_chefia': 'Apoio Chefia',
+    'apoio_colegas': 'Apoio Colegas', 'relacionamentos': 'Relacionamentos',
+    'cargo': 'Cargo', 'mudancas': 'Mudanças'
+  };
+  
+  const dimensions: any[] = [];
+  let totalScore = 0, count = 0;
+  
+  for (const [key, val] of Object.entries(answers)) {
+    const normalizedKey = key.toLowerCase().replace(/ /g, '_');
+    const dimName = dimensionMapping[normalizedKey];
+    if (!dimName) continue;
+    
+    const numVal = typeof val === 'number' ? val : parseFloat(val);
+    if (isNaN(numVal)) continue;
+    
+    const normalized = Math.round(numVal);
+    const { status, color } = getDimensionStatus(normalized, thresholds.dimension_thresholds);
+    dimensions.push({ name: dimName, score: numVal, normalized_score: normalized, status, color });
+    totalScore += normalized;
+    count++;
+  }
+  
+  const globalPercentage = count > 0 ? Math.round(totalScore / count) : 0;
+  const risk = getRiskLevel(globalPercentage, thresholds.levels);
+  
+  return { global_score: globalPercentage, risk_level: risk.level, risk_label: risk.label, risk_color: risk.color, risk_description: risk.description, dimensions, calculation_method: "hseit_legacy", calculated_at: new Date().toISOString() };
+}
+
+// HSE-IT Modern
 function calculateHSEIT_Percentage(answers: Record<string, any>, schema: any[], rules: CalculationRules, thresholds: RiskThresholds) {
-  console.log("=== HSE-IT PERCENTAGE ===");
   const dimConfig = rules.dimensions || {
     "Demandas": { questions: ["d1","d2","d3","d4","d5","d6","d7","d8"], is_reverse_scored: false },
     "Relacionamentos": { questions: ["r1","r2","r3","r4"], is_reverse_scored: false },
@@ -119,6 +215,36 @@ function calculateHSEIT_Percentage(answers: Record<string, any>, schema: any[], 
   return { global_score: globalPercentage, risk_level: risk.level, risk_label: risk.label, risk_color: risk.color, risk_description: risk.description, dimensions, calculation_method: "hseit_percentage", calculated_at: new Date().toISOString() };
 }
 
+// NASA-TLX
+function calculateNASATLX(answers: Record<string, any>, thresholds: RiskThresholds) {
+  const dimensionMapping: Record<string, string> = {
+    'mental_demand': 'Demanda Mental', 'physical_demand': 'Demanda Física',
+    'temporal_demand': 'Demanda Temporal', 'performance': 'Performance',
+    'effort': 'Esforço', 'frustration': 'Frustração'
+  };
+  
+  const dimensions: any[] = [];
+  let total = 0, count = 0;
+  
+  for (const [key, val] of Object.entries(answers)) {
+    const dimName = dimensionMapping[key];
+    if (!dimName) continue;
+    
+    const numVal = typeof val === 'number' ? val : (Array.isArray(val) ? val[0] : parseFloat(val));
+    if (isNaN(numVal)) continue;
+    
+    const { status, color } = getDimensionStatus(numVal, thresholds.dimension_thresholds);
+    dimensions.push({ name: dimName, score: numVal, normalized_score: numVal, status, color });
+    total += numVal;
+    count++;
+  }
+  
+  const globalScore = count > 0 ? Math.round(total / count) : 0;
+  const risk = getRiskLevel(globalScore, thresholds.levels);
+  
+  return { global_score: globalScore, risk_level: risk.level, risk_label: risk.label, risk_color: risk.color, risk_description: risk.description, dimensions, calculation_method: "nasa_tlx", calculated_at: new Date().toISOString() };
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -129,7 +255,7 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    console.log("Starting batch recalculation with new ERGOS/HSE-IT logic...");
+    console.log("Starting batch recalculation with legacy/modern format detection...");
 
     const { data: reports, error: reportsError } = await supabase
       .from('reports')
@@ -154,7 +280,7 @@ serve(async (req) => {
 
     console.log(`Found ${reports?.length || 0} reports to recalculate`);
 
-    const results = { total: reports?.length || 0, success: 0, failed: 0, errors: [] as string[] };
+    const results = { total: reports?.length || 0, success: 0, failed: 0, errors: [] as string[], details: [] as any[] };
 
     for (const report of reports || []) {
       try {
@@ -162,18 +288,26 @@ serve(async (req) => {
         const form = submission.forms as any;
         const answers = submission.answers as Record<string, any>;
         const schema = form.schema as any[];
+        const formType = form.type as string;
         
-        const rules: CalculationRules = form.calculation_rules || { method: form.type === "ergos" ? "ergos_weighted" : "hseit_percentage" };
+        const rules: CalculationRules = form.calculation_rules || { method: formType === "ergos" ? "ergos_weighted" : "hseit_percentage" };
         const thresholds: RiskThresholds = form.risk_thresholds || {
           levels: [{ min: 0, max: 30, level: "baixo", label: "Satisfatório", color: "green", description: "Adequado" }, { min: 31, max: 60, level: "medio", label: "Aceitável", color: "yellow", description: "Atenção" }, { min: 61, max: 100, level: "alto", label: "Deve Melhorar", color: "red", description: "Crítico" }],
           dimension_thresholds: { low: { max: 30, status: "Adequado", color: "green" }, medium: { max: 60, status: "Atenção", color: "yellow" }, high: { min: 61, status: "Crítico", color: "red" } }
         };
 
+        // Detectar formato
+        const format = detectSubmissionFormat(answers);
+        console.log(`Report ${report.id}: formType=${formType}, format=${format}`);
+
         let result;
-        if (rules.method === "ergos_weighted" || form.type === "ergos") {
-          result = calculateERGOS_Weighted(answers, schema, rules, thresholds);
+        
+        if (formType === 'nasa_tlx' || rules.method === 'nasa_tlx') {
+          result = calculateNASATLX(answers, thresholds);
+        } else if (rules.method === "ergos_weighted" || formType === "ergos") {
+          result = format === 'legacy' ? calculateERGOS_Legacy(answers, thresholds) : calculateERGOS_Weighted(answers, schema, rules, thresholds);
         } else {
-          result = calculateHSEIT_Percentage(answers, schema, rules, thresholds);
+          result = format === 'legacy' ? calculateHSEIT_Legacy(answers, thresholds) : calculateHSEIT_Percentage(answers, schema, rules, thresholds);
         }
 
         const { error: updateError } = await supabase
@@ -183,7 +317,8 @@ serve(async (req) => {
 
         if (updateError) throw new Error(`Update failed: ${updateError.message}`);
         results.success++;
-        console.log(`Report ${report.id}: global_score=${result.global_score}, risk=${result.risk_label}`);
+        results.details.push({ id: report.id, format, method: result.calculation_method, global_score: result.global_score, risk: result.risk_label });
+        console.log(`Report ${report.id}: score=${result.global_score}, risk=${result.risk_label}, method=${result.calculation_method}`);
       } catch (err) {
         results.failed++;
         results.errors.push(`Report ${report.id}: ${err instanceof Error ? err.message : 'Error'}`);

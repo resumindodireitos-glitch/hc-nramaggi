@@ -993,20 +993,23 @@ function QuestionInput({
       // ERGOS-style weighted options with elegant cards
       const weightedOptions = (question.options || []) as WeightedOption[];
       
-      // Helper function to get explicit classes (Tailwind can't purge dynamic classes)
+      // Helper function to get explicit classes based on ERGOS Excel weights (0, 2, 4)
+      // Weight 0 = Green (melhor situação)
+      // Weight 2 = Amber (situação intermediária)
+      // Weight 4 = Rose (pior situação)
       const getWeightedClasses = (weight: number, isSelected: boolean) => {
-        if (weight <= 1) {
-          // Green - low weight (good)
+        if (weight === 0) {
+          // Green - weight 0 (melhor situação)
           return isSelected 
             ? "border-emerald-500 bg-emerald-500/10 shadow-lg shadow-emerald-500/10"
             : "border-slate-700 hover:border-emerald-500/50 bg-slate-800/30 hover:bg-slate-800/50";
-        } else if (weight <= 2) {
-          // Yellow/Amber - medium weight (attention)
+        } else if (weight === 2) {
+          // Yellow/Amber - weight 2 (situação intermediária)
           return isSelected 
             ? "border-amber-500 bg-amber-500/10 shadow-lg shadow-amber-500/10"
             : "border-slate-700 hover:border-amber-500/50 bg-slate-800/30 hover:bg-slate-800/50";
         } else {
-          // Red/Rose - high weight (concern)
+          // Red/Rose - weight 4 (pior situação)
           return isSelected 
             ? "border-rose-500 bg-rose-500/10 shadow-lg shadow-rose-500/10"
             : "border-slate-700 hover:border-rose-500/50 bg-slate-800/30 hover:bg-slate-800/50";
@@ -1015,14 +1018,14 @@ function QuestionInput({
 
       const getWeightedBadgeClasses = (weight: number, isSelected: boolean) => {
         if (!isSelected) return "bg-slate-700 text-slate-400";
-        if (weight <= 1) return "bg-emerald-500 text-white";
-        if (weight <= 2) return "bg-amber-500 text-white";
+        if (weight === 0) return "bg-emerald-500 text-white";
+        if (weight === 2) return "bg-amber-500 text-white";
         return "bg-rose-500 text-white";
       };
 
       const getWeightedCheckClasses = (weight: number) => {
-        if (weight <= 1) return "bg-emerald-500";
-        if (weight <= 2) return "bg-amber-500";
+        if (weight === 0) return "bg-emerald-500";
+        if (weight === 2) return "bg-amber-500";
         return "bg-rose-500";
       };
       
