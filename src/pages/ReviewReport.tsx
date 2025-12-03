@@ -270,18 +270,20 @@ export default function ReviewReport() {
 
   const getRiskColor = (risk: string | null) => {
     switch (risk?.toLowerCase()) {
+      // Labels ERGOS
+      case "deve melhorar":
       case "critico":
       case "intoleravel":
-        return "bg-red-500/10 text-red-500 border-red-500/20";
       case "alto":
-      case "substancial":
-        return "bg-orange-500/10 text-orange-500 border-orange-500/20";
+        return "bg-red-500/10 text-red-500 border-red-500/20";
+      case "aceitável":
       case "medio":
       case "moderado":
+      case "substancial":
         return "bg-yellow-500/10 text-yellow-500 border-yellow-500/20";
+      case "satisfatório":
       case "baixo":
       case "toleravel":
-        return "bg-emerald-500/10 text-emerald-500 border-emerald-500/20";
       case "adequado":
       case "trivial":
         return "bg-green-500/10 text-green-500 border-green-500/20";
@@ -292,15 +294,21 @@ export default function ReviewReport() {
 
   const getRiskIcon = (risk: string | null) => {
     switch (risk?.toLowerCase()) {
+      case "deve melhorar":
       case "critico":
       case "intoleravel":
       case "alto":
       case "substancial":
         return <AlertTriangle className="h-4 w-4" />;
+      case "satisfatório":
       case "adequado":
       case "trivial":
       case "baixo":
         return <CheckCircle className="h-4 w-4" />;
+      case "aceitável":
+      case "medio":
+      case "moderado":
+        return <TrendingUp className="h-4 w-4" />;
       default:
         return <TrendingUp className="h-4 w-4" />;
     }

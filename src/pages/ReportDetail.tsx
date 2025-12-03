@@ -89,11 +89,18 @@ export default function ReportDetail() {
 
   const getRiskColor = (risk: string | null) => {
     switch (risk?.toLowerCase()) {
+      // Labels ERGOS
+      case "deve melhorar":
+      case "critico":
       case "alto":
         return "bg-destructive/10 text-destructive border-destructive/20";
+      case "aceitável":
       case "medio":
+      case "moderado":
         return "bg-warning/10 text-warning border-warning/20";
+      case "satisfatório":
       case "baixo":
+      case "adequado":
         return "bg-success/10 text-success border-success/20";
       default:
         return "bg-muted text-muted-foreground";
