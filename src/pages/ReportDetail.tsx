@@ -47,9 +47,16 @@ export default function ReportDetail() {
         .from("reports")
         .select("*, submissions(*, forms(*))")
         .eq("id", id)
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
+      
+      if (!data) {
+        toast.error("Relatório não encontrado");
+        navigate(-1);
+        return;
+      }
+      
       setReport(data as ReportWithDetails);
     } catch (error) {
       console.error("Error fetching report:", error);
