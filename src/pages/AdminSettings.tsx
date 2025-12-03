@@ -14,8 +14,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { Loader2, Settings, Brain, Key, Shield, Plus, Pencil, Trash2, Save, RefreshCw, Users, History, Eye, EyeOff, CheckCircle2, XCircle } from "lucide-react";
+import { Loader2, Settings, Brain, Key, Shield, Plus, Pencil, Trash2, Save, RefreshCw, Users, History, Eye, EyeOff, CheckCircle2, XCircle, FileSpreadsheet } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { CSVImporter } from "@/components/admin/CSVImporter";
 
 interface AIPrompt {
   id: string;
@@ -831,6 +832,24 @@ export default function AdminSettings() {
 
           {/* Settings Tab */}
           <TabsContent value="settings" className="space-y-4">
+            {/* CSV Importer for Risk Matrices */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <FileSpreadsheet className="h-5 w-5 text-primary" />
+                  Importar Matrizes de Risco (CSV)
+                </CardTitle>
+                <CardDescription>
+                  Importe dados CSV para as tabelas de matriz de risco ERGOS, HSE-IT e Biomecânicos. 
+                  Útil para carregar portfólios personalizados da Amaggi.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <CSVImporter onImportComplete={loadData} />
+              </CardContent>
+            </Card>
+
+            {/* Other Settings */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
