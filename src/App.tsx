@@ -27,6 +27,8 @@ import AIPromptsManagement from "./pages/AIPromptsManagement";
 import AIAgents from "./pages/AIAgents";
 import SubmissionsManagement from "./pages/SubmissionsManagement";
 import SystemLogs from "./pages/SystemLogs";
+import Profile from "./pages/Profile";
+import SystemUpdates from "./pages/SystemUpdates";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -196,6 +198,22 @@ const App = () => (
               element={
                 <ProtectedRoute requireAdmin>
                   <SystemLogs />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/profile"
+              element={
+                <ProtectedRoute>
+                  <Profile />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/updates"
+              element={
+                <ProtectedRoute>
+                  <SystemUpdates />
                 </ProtectedRoute>
               }
             />

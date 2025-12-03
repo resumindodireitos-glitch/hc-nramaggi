@@ -113,6 +113,93 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_usage: {
+        Row: {
+          agent_id: string | null
+          cost_estimate: number | null
+          created_at: string | null
+          id: string
+          input_tokens: number | null
+          model: string
+          output_tokens: number | null
+          provider: string
+          submission_id: string | null
+          total_tokens: number | null
+          user_id: string | null
+        }
+        Insert: {
+          agent_id?: string | null
+          cost_estimate?: number | null
+          created_at?: string | null
+          id?: string
+          input_tokens?: number | null
+          model: string
+          output_tokens?: number | null
+          provider: string
+          submission_id?: string | null
+          total_tokens?: number | null
+          user_id?: string | null
+        }
+        Update: {
+          agent_id?: string | null
+          cost_estimate?: number | null
+          created_at?: string | null
+          id?: string
+          input_tokens?: number | null
+          model?: string
+          output_tokens?: number | null
+          provider?: string
+          submission_id?: string | null
+          total_tokens?: number | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_usage_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "ai_prompts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_usage_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_usage_limits: {
+        Row: {
+          created_at: string | null
+          daily_token_limit: number | null
+          id: string
+          is_active: boolean | null
+          monthly_token_limit: number | null
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          daily_token_limit?: number | null
+          id?: string
+          is_active?: boolean | null
+          monthly_token_limit?: number | null
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          daily_token_limit?: number | null
+          id?: string
+          is_active?: boolean | null
+          monthly_token_limit?: number | null
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       audit_log: {
         Row: {
           action: string
@@ -154,6 +241,7 @@ export type Database = {
           code: string | null
           created_at: string | null
           description: string | null
+          farm_id: string | null
           id: string
           manager_name: string | null
           name: string
@@ -163,6 +251,7 @@ export type Database = {
           code?: string | null
           created_at?: string | null
           description?: string | null
+          farm_id?: string | null
           id?: string
           manager_name?: string | null
           name: string
@@ -172,12 +261,21 @@ export type Database = {
           code?: string | null
           created_at?: string | null
           description?: string | null
+          farm_id?: string | null
           id?: string
           manager_name?: string | null
           name?: string
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "departments_farm_id_fkey"
+            columns: ["farm_id"]
+            isOneToOne: false
+            referencedRelation: "farms"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       document_chunks: {
         Row: {
@@ -222,6 +320,7 @@ export type Database = {
           admission_date: string | null
           created_at: string | null
           email: string | null
+          farm_id: string | null
           id: string
           is_active: boolean | null
           job_role_id: string | null
@@ -233,6 +332,7 @@ export type Database = {
           admission_date?: string | null
           created_at?: string | null
           email?: string | null
+          farm_id?: string | null
           id?: string
           is_active?: boolean | null
           job_role_id?: string | null
@@ -244,6 +344,7 @@ export type Database = {
           admission_date?: string | null
           created_at?: string | null
           email?: string | null
+          farm_id?: string | null
           id?: string
           is_active?: boolean | null
           job_role_id?: string | null
@@ -253,6 +354,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "employees_farm_id_fkey"
+            columns: ["farm_id"]
+            isOneToOne: false
+            referencedRelation: "farms"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "employees_job_role_id_fkey"
             columns: ["job_role_id"]
             isOneToOne: false
@@ -260,6 +368,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      farms: {
+        Row: {
+          code: string | null
+          created_at: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          location: string | null
+          manager_name: string | null
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          code?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          location?: string | null
+          manager_name?: string | null
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          code?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          location?: string | null
+          manager_name?: string | null
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
       }
       forms: {
         Row: {
@@ -388,6 +532,42 @@ export type Database = {
           name?: string
           status?: string | null
           updated_at?: string | null
+        }
+        Relationships: []
+      }
+      notifications: {
+        Row: {
+          category: string | null
+          created_at: string | null
+          id: string
+          is_read: boolean | null
+          link: string | null
+          message: string
+          title: string
+          type: string | null
+          user_id: string | null
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string | null
+          id?: string
+          is_read?: boolean | null
+          link?: string | null
+          message: string
+          title: string
+          type?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          category?: string | null
+          created_at?: string | null
+          id?: string
+          is_read?: boolean | null
+          link?: string | null
+          message?: string
+          title?: string
+          type?: string | null
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -559,6 +739,36 @@ export type Database = {
           key?: string
           updated_at?: string | null
           value?: string | null
+        }
+        Relationships: []
+      }
+      system_updates: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          description: string
+          id: string
+          title: string
+          type: string | null
+          version: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          description: string
+          id?: string
+          title: string
+          type?: string | null
+          version?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          description?: string
+          id?: string
+          title?: string
+          type?: string | null
+          version?: string | null
         }
         Relationships: []
       }

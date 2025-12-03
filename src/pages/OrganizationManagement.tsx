@@ -48,6 +48,7 @@ import {
   Users,
   Search,
   ChevronRight,
+  Tractor,
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -457,10 +458,14 @@ export default function OrganizationManagement() {
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="farms" className="gap-2">
+              <Tractor className="h-4 w-4" />
+              Fazendas
+            </TabsTrigger>
             <TabsTrigger value="departments" className="gap-2">
               <Building2 className="h-4 w-4" />
-              Departamentos
+              Setores
             </TabsTrigger>
             <TabsTrigger value="roles" className="gap-2">
               <Briefcase className="h-4 w-4" />
@@ -471,6 +476,29 @@ export default function OrganizationManagement() {
               Colaboradores
             </TabsTrigger>
           </TabsList>
+
+          {/* Farms Tab */}
+          <TabsContent value="farms">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle>Fazendas / Unidades</CardTitle>
+                  <Button size="sm" className="gap-2" onClick={() => toast.info("Use o banco de dados para gerenciar fazendas")}>
+                    <Plus className="h-4 w-4" />
+                    Nova
+                  </Button>
+                </div>
+                <CardDescription>
+                  Gerencie as fazendas e unidades administrativas (Sede)
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="text-sm text-muted-foreground">
+                  Fazendas disponíveis: Sede Administrativa, Fazenda Tanguro, Fazenda Tucunaré
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
           {/* Departments Tab */}
           <TabsContent value="departments">
