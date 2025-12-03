@@ -9,7 +9,7 @@ import { Trash2, ChevronUp, ChevronDown, GripVertical, Plus, X } from "lucide-re
 
 export interface FormQuestion {
   id: string;
-  type: "text" | "textarea" | "radio" | "checkbox" | "scale" | "select";
+  type: "text" | "textarea" | "radio" | "checkbox" | "scale" | "select" | "slider";
   label: string;
   description?: string;
   required?: boolean;
@@ -56,7 +56,7 @@ export function QuestionEditor({
   };
 
   const needsOptions = ["radio", "checkbox", "select"].includes(question.type);
-  const needsScale = question.type === "scale";
+  const needsScale = question.type === "scale" || question.type === "slider";
 
   return (
     <Card className="border-l-4 border-l-primary/50">
@@ -108,7 +108,8 @@ export function QuestionEditor({
                     <SelectItem value="textarea">Texto longo</SelectItem>
                     <SelectItem value="radio">Escolha única</SelectItem>
                     <SelectItem value="checkbox">Múltipla escolha</SelectItem>
-                    <SelectItem value="scale">Escala numérica</SelectItem>
+                    <SelectItem value="scale">Escala 1-5</SelectItem>
+                    <SelectItem value="slider">Slider (0-100)</SelectItem>
                     <SelectItem value="select">Lista suspensa</SelectItem>
                   </SelectContent>
                 </Select>
