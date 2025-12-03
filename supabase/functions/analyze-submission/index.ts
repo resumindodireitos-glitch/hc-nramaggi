@@ -91,95 +91,6 @@ O HSE-IT avalia 7 dimensões em percentual de fatores estressores:
 - 12 a 18: Substancial
 - 27: Intolerável
 
-## 4. TIPIFICAÇÃO DE EXPOSIÇÃO
-- Habitual: Exposição regular durante jornada
-- Permanente: Exposição contínua durante toda jornada
-- Intermitente: Exposição em períodos alternados
-- Eventual: Exposição esporádica
-
-## 5. TEXTOS PADRÃO POR DIMENSÃO
-
-### ERGOS - Textos por Fator:
-
-**Monotonia (score >= 6):**
-"Na dimensão monotonia foi identificado tarefas repetitivas e baixa diversidade nas tarefas, recomendando enriquecimento de funções, rodízio de atividades e maior diversidade de tarefas conforme princípios da NR-17 e da ISO 10075-1."
-
-**Isolamento (score >= 6):**
-"Na dimensão isolamento foi identificada percepção de baixo contato interpessoal. Recomenda-se manter maior integração entre colegas e espaços de interação coletiva, conforme diretrizes da ISO 45003."
-
-**Pressão de tempo (score >= 6):**
-"Na dimensão pressão de tempo, o resultado indica que os prazos e a intensidade de execução das atividades poderão ser melhor gerenciados, conforme ISO 10075-1 e NR-17."
-
-**Raciocínio e processos centrais (score >= 6):**
-"Na dimensão raciocínio e processos centrais foi identificado nível médio para tomada de decisões e memorização de processos de trabalho, conforme orientações da ISO 10075."
-
-**Complexidade (score >= 6):**
-"Na dimensão complexidade foi identificada exigência cognitiva elevada. Recomenda-se adequação entre as exigências da tarefa e a capacidade do trabalhador."
-
-**Iniciativa (score >= 6):**
-"Na dimensão iniciativa foi identificado nível de autonomia reduzido, detectando diminuição de participação ativa nas tomadas de decisões, aspecto apresentado para ajustes conforme ISO 45003."
-
-### HSE-IT - Textos por Dimensão:
-
-**Demandas (>= 20%):**
-"Na dimensão demandas foram identificados aspectos relacionados à carga de trabalho, prazos ou volume de tarefas que podem estar diferentes da capacidade adaptativa esperada, recomendando monitoramento e ajustes na redistribuição de atividades, seguindo orientações da ISO 10075-1 (Fatores Humanos – Carga Mental de Trabalho)."
-
-**Controle (>= 20%):**
-"Na dimensão controle foi identificado nível médio detectando diminuição de participação ativa nas tomadas de decisões e autonomia no processo de trabalho, aspecto apresentado para ajustes na ISO 45003."
-
-**Suporte/apoio da chefia (>= 20%):**
-"Na dimensão suporte/apoio da chefia foram identificadas fragilidades no apoio por parte dos superiores e nos recursos fornecidos para resolver problemas, recomendando fortalecimento do suporte gerencial conforme ISO 45003."
-
-**Suporte/apoio dos colegas (>= 20%):**
-"Na dimensão apoio de colegas foi identificada fragilidade na cooperação interpessoal e no suporte social entre colegas de trabalho, apontando possíveis conflitos ou isolamento nas atividades laborais, recomendando fortalecimento do clima organizacional e incentivo ao trabalho em equipe, conforme diretrizes da ISO 45003."
-
-**Relacionamentos (>= 20%):**
-"Na dimensão relacionamentos foram identificados aspectos relacionados a comportamentos interpessoais que necessitam atenção, recomendando fortalecimento das relações e prevenção de conflitos conforme ISO 45003."
-
-**Cargo (>= 20%):**
-"Na dimensão cargo foram identificadas fragilidades quanto à transparência nos critérios de promoção e reconhecimento profissional."
-
-**Comunicação e mudanças (>= 20%):**
-"Na dimensão comunicação e mudanças foram identificadas fragilidades na participação dos trabalhadores em processos de mudança organizacional."
-
-## 6. MEDIDAS DE CONTROLE PADRÃO
-Para QUALQUER risco identificado (NRE >= 2), a medida padrão é:
-"Manter e monitorar ações aplicáveis constantes no portfólio CULTURA DE CUIDADO - Saúde Mental e Qualidade de Vida na AMAGGI."
-
-## 7. TEXTO DE RESULTADO SEM RISCO (0% ou score baixo)
-"A aplicação do instrumento resultou em condições psicossociais adequadas, não havendo evidências de sobrecarga, desequilíbrio no suporte organizacional ou conflitos interpessoais que possam comprometer a atividade laboral. Reforça-se monitoramento dos fatores conforme diretrizes NR-1, anexo 2, para manutenção de um ambiente de trabalho em conformidade."
-
----
-
-# INSTRUÇÕES DE PROCESSAMENTO
-
-1. **Identifique o tipo de formulário:**
-   - Se contém campos como "pressao_tempo", "atencao", "monotonia" → ERGOS (operacional)
-   - Se contém campos como "demandas", "relacionamentos", "controle" → HSE-IT (administrativo)
-
-2. **Para ERGOS:**
-   - Calcule a soma da Tabela A (pressao_tempo + atencao + complexidade + monotonia + raciocinio)
-   - Calcule a soma da Tabela B (iniciativa + isolamento + horarios_turnos + relacionamentos + demandas_gerais)
-   - Pontuação Total ≈ (Tabela_A + Tabela_B) * 0.83
-   - Identifique fatores com score >= 6 como pontos de atenção
-   - Gere o texto de interpretação baseado nos resultados
-
-3. **Para HSE-IT:**
-   - Analise cada dimensão em percentual
-   - Identifique dimensões com >= 20% como pontos de atenção
-   - Gere o texto de interpretação baseado nos resultados
-
-4. **Gere o Inventário de Riscos:**
-   - Para cada fator de risco identificado (score alto):
-     - Determine G, P, C baseado na severidade do score
-     - Calcule NRE = G × P × C
-     - Classifique o NRE
-     - Atribua a medida de controle padrão
-
-5. **Monte a Conclusão:**
-   - Se todos os fatores estão adequados: use texto padrão de conformidade
-   - Se há riscos identificados: liste as dimensões e recomendações específicas
-
 # FORMATO DE SAÍDA (JSON ESTRITO)
 
 Retorne APENAS este JSON, sem markdown:
@@ -189,8 +100,7 @@ Retorne APENAS este JSON, sem markdown:
   "form_type": "ergos" | "hse_it",
   "total_score": 00.00,
   "dimensions_score": {
-    "dimensao1": { "score": 0, "risk_color": "verde" | "amarelo" | "vermelho" },
-    "dimensao2": { "score": 0, "risk_color": "verde" | "amarelo" | "vermelho" }
+    "dimensao1": { "score": 0, "risk_color": "verde" | "amarelo" | "vermelho" }
   },
   "analysis_text": "Texto completo da interpretação dos resultados...",
   "risk_inventory": [
@@ -210,6 +120,172 @@ Retorne APENAS este JSON, sem markdown:
   "conclusion": "Texto conclusivo formal...",
   "recommendations": ["Recomendação 1", "Recomendação 2"]
 }`;
+
+// API endpoints for different providers
+const AI_ENDPOINTS = {
+  lovable: "https://ai.gateway.lovable.dev/v1/chat/completions",
+  openai: "https://api.openai.com/v1/chat/completions",
+  anthropic: "https://api.anthropic.com/v1/messages",
+  deepseek: "https://api.deepseek.com/v1/chat/completions",
+};
+
+async function callLovableAI(systemPrompt: string, userPrompt: string, model: string, apiKey: string) {
+  const response = await fetch(AI_ENDPOINTS.lovable, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error("Lovable AI error:", response.status, errorText);
+    throw new Error(`Lovable AI error: ${response.status}`);
+  }
+
+  const data = await response.json();
+  return data.choices?.[0]?.message?.content;
+}
+
+async function callOpenAI(systemPrompt: string, userPrompt: string, model: string, apiKey: string) {
+  const response = await fetch(AI_ENDPOINTS.openai, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      max_tokens: 4000,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error("OpenAI error:", response.status, errorText);
+    throw new Error(`OpenAI error: ${response.status}`);
+  }
+
+  const data = await response.json();
+  return data.choices?.[0]?.message?.content;
+}
+
+async function callAnthropic(systemPrompt: string, userPrompt: string, model: string, apiKey: string) {
+  const response = await fetch(AI_ENDPOINTS.anthropic, {
+    method: "POST",
+    headers: {
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model,
+      max_tokens: 4000,
+      system: systemPrompt,
+      messages: [
+        { role: "user", content: userPrompt },
+      ],
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error("Anthropic error:", response.status, errorText);
+    throw new Error(`Anthropic error: ${response.status}`);
+  }
+
+  const data = await response.json();
+  return data.content?.[0]?.text;
+}
+
+async function callDeepSeek(systemPrompt: string, userPrompt: string, model: string, apiKey: string) {
+  const response = await fetch(AI_ENDPOINTS.deepseek, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      max_tokens: 4000,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error("DeepSeek error:", response.status, errorText);
+    throw new Error(`DeepSeek error: ${response.status}`);
+  }
+
+  const data = await response.json();
+  return data.choices?.[0]?.message?.content;
+}
+
+function generateFallbackAnalysis(formType: string, answers: Record<string, any>) {
+  // Basic analysis without AI
+  const isErgos = formType === "ergos";
+  
+  let totalScore = 0;
+  const dimensionsScore: Record<string, { score: number; risk_color: string }> = {};
+
+  if (isErgos) {
+    // Calculate ERGOS score
+    const factors = ["pressao_tempo", "atencao", "complexidade", "monotonia", "raciocinio", 
+                     "iniciativa", "isolamento", "horarios_turnos", "relacionamentos", "demandas_gerais"];
+    let sum = 0;
+    factors.forEach(f => {
+      const val = parseInt(answers[f]) || 0;
+      sum += val;
+      dimensionsScore[f] = {
+        score: val,
+        risk_color: val >= 7 ? "vermelho" : val >= 4 ? "amarelo" : "verde"
+      };
+    });
+    totalScore = Math.round(sum * 0.83);
+  } else {
+    // HSE-IT calculation
+    const dimensions = ["demandas", "relacionamentos", "controle", "suporte_chefia", 
+                        "suporte_colegas", "cargo", "comunicacao_mudancas"];
+    dimensions.forEach(d => {
+      const val = parseInt(answers[d]) || 0;
+      dimensionsScore[d] = {
+        score: val,
+        risk_color: val > 50 ? "vermelho" : val > 20 ? "amarelo" : "verde"
+      };
+      totalScore += val;
+    });
+    totalScore = Math.round(totalScore / dimensions.length);
+  }
+
+  const riskLevel = totalScore > 50 ? "alto" : totalScore > 30 ? "medio" : "baixo";
+
+  return {
+    risk_level: riskLevel,
+    form_type: formType,
+    total_score: totalScore,
+    dimensions_score: dimensionsScore,
+    analysis_text: "Análise gerada automaticamente. Configure um prompt de IA personalizado para análises mais detalhadas.",
+    risk_inventory: [],
+    conclusion: "Relatório gerado sem análise de IA. Configure as chaves de API ou prompts para análises completas.",
+    recommendations: ["Configure um prompt de IA ativo para gerar recomendações personalizadas."]
+  };
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -240,7 +316,6 @@ serve(async (req) => {
       );
     }
 
-    // Verify user has access via RLS
     const userClient = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } }
     });
@@ -253,7 +328,6 @@ serve(async (req) => {
       );
     }
 
-    // Check if user is admin (only admins can trigger AI analysis)
     const { data: userRole } = await userClient.from("user_roles").select("role").eq("user_id", user.id).single();
     const isAdmin = userRole?.role === "admin_hc" || userRole?.role === "super_admin";
     
@@ -265,7 +339,6 @@ serve(async (req) => {
     }
 
     console.log("User authorized:", user.id, "Role:", userRole?.role);
-    // === END AUTHORIZATION CHECK ===
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
@@ -284,15 +357,15 @@ serve(async (req) => {
       );
     }
 
-    // Determine form type and fetch active prompt from database
     const formType = submission.forms?.type || "ergos";
     let systemPrompt = MASTER_PROMPT;
     let modelToUse = "google/gemini-2.5-flash";
+    let providerToUse = "lovable";
 
-    // Try to fetch custom prompt from ai_prompts table
+    // Fetch active prompt from database
     const { data: customPrompt, error: promptError } = await supabase
       .from("ai_prompts")
-      .select("system_prompt, model, temperature, max_tokens")
+      .select("system_prompt, model, provider, temperature, max_tokens")
       .eq("form_type", formType)
       .eq("is_active", true)
       .maybeSingle();
@@ -301,24 +374,34 @@ serve(async (req) => {
       console.log("Using custom prompt for form type:", formType);
       systemPrompt = customPrompt.system_prompt;
       modelToUse = customPrompt.model || modelToUse;
+      providerToUse = customPrompt.provider || providerToUse;
     } else {
       console.log("Using default MASTER_PROMPT for form type:", formType);
     }
 
-    console.log("Analyzing submission:", submissionId);
-    console.log("Form type:", submission.forms?.type);
-    console.log("Answers:", JSON.stringify(submission.answers));
+    // Get API keys from system_settings
+    const { data: settingsData } = await supabase
+      .from("system_settings")
+      .select("key, value")
+      .in("key", ["OPENAI_API_KEY", "ANTHROPIC_API_KEY", "DEEPSEEK_API_KEY"]);
 
-    // Build context for AI analysis
+    const apiKeys: Record<string, string> = {};
+    settingsData?.forEach(s => {
+      if (s.value) apiKeys[s.key] = s.value;
+    });
+
+    console.log("Analyzing submission:", submissionId);
+    console.log("Provider:", providerToUse, "Model:", modelToUse);
+
     const formTitle = submission.forms?.title || "Formulário";
     const answers = submission.answers;
     const respondentData = submission.respondent_data || {};
 
     const userPrompt = `# DADOS DO COLABORADOR
-- Nome: ${respondentData.full_name || "Não informado"}
-- Função: ${respondentData.job_title || "Não informado"}
-- Setor: ${respondentData.department || "Não informado"}
-- Empresa: ${respondentData.company || "Amaggi"}
+- Nome: ${respondentData.full_name || respondentData.nome || "Não informado"}
+- Função: ${respondentData.job_title || respondentData.cargo || "Não informado"}
+- Setor: ${respondentData.department || respondentData.setor || "Não informado"}
+- Empresa: Amaggi
 
 # FORMULÁRIO
 - Título: ${formTitle}
@@ -330,58 +413,61 @@ ${JSON.stringify(answers, null, 2)}
 Analise estas respostas e gere o relatório técnico completo conforme as instruções do sistema.`;
 
     let analysisResult;
+    let aiContent: string | null = null;
 
-    if (lovableApiKey) {
-      // Use Lovable AI Gateway
-      console.log("Calling Lovable AI Gateway with model:", modelToUse);
-      const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${lovableApiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: modelToUse,
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: userPrompt },
-          ],
-        }),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("AI Gateway error:", response.status, errorText);
-        
-        if (response.status === 429) {
-          return new Response(
-            JSON.stringify({ error: "Rate limit exceeded. Please try again later." }),
-            { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-          );
-        }
-        if (response.status === 402) {
-          return new Response(
-            JSON.stringify({ error: "Payment required. Please add credits to continue." }),
-            { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-          );
-        }
-        throw new Error(`AI Gateway error: ${response.status}`);
+    try {
+      // Try to call the appropriate AI provider
+      switch (providerToUse) {
+        case "lovable":
+          if (lovableApiKey) {
+            aiContent = await callLovableAI(systemPrompt, userPrompt, modelToUse, lovableApiKey);
+          }
+          break;
+        case "openai":
+          if (apiKeys["OPENAI_API_KEY"]) {
+            aiContent = await callOpenAI(systemPrompt, userPrompt, modelToUse, apiKeys["OPENAI_API_KEY"]);
+          } else {
+            console.log("OpenAI API key not configured, falling back to Lovable AI");
+            if (lovableApiKey) {
+              aiContent = await callLovableAI(systemPrompt, userPrompt, "google/gemini-2.5-flash", lovableApiKey);
+            }
+          }
+          break;
+        case "anthropic":
+          if (apiKeys["ANTHROPIC_API_KEY"]) {
+            aiContent = await callAnthropic(systemPrompt, userPrompt, modelToUse, apiKeys["ANTHROPIC_API_KEY"]);
+          } else {
+            console.log("Anthropic API key not configured, falling back to Lovable AI");
+            if (lovableApiKey) {
+              aiContent = await callLovableAI(systemPrompt, userPrompt, "google/gemini-2.5-flash", lovableApiKey);
+            }
+          }
+          break;
+        case "deepseek":
+          if (apiKeys["DEEPSEEK_API_KEY"]) {
+            aiContent = await callDeepSeek(systemPrompt, userPrompt, modelToUse, apiKeys["DEEPSEEK_API_KEY"]);
+          } else {
+            console.log("DeepSeek API key not configured, falling back to Lovable AI");
+            if (lovableApiKey) {
+              aiContent = await callLovableAI(systemPrompt, userPrompt, "google/gemini-2.5-flash", lovableApiKey);
+            }
+          }
+          break;
       }
 
-      const aiResponse = await response.json();
-      const content = aiResponse.choices?.[0]?.message?.content;
-      
-      console.log("AI Response content:", content);
-
-      // Parse JSON from response
-      const jsonMatch = content.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) {
-        throw new Error("Could not parse AI response as JSON");
+      if (aiContent) {
+        console.log("AI Response received, parsing JSON...");
+        const jsonMatch = aiContent.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) {
+          throw new Error("Could not parse AI response as JSON");
+        }
+        analysisResult = JSON.parse(jsonMatch[0]);
+      } else {
+        console.log("No AI response, generating fallback analysis");
+        analysisResult = generateFallbackAnalysis(formType, answers);
       }
-      analysisResult = JSON.parse(jsonMatch[0]);
-    } else {
-      // Fallback: Generate a basic report without AI
-      console.log("No AI API key configured, generating basic report");
+    } catch (aiError) {
+      console.error("AI call failed:", aiError);
       analysisResult = generateFallbackAnalysis(formType, answers);
     }
 
@@ -426,66 +512,3 @@ Analise estas respostas e gere o relatório técnico completo conforme as instru
     );
   }
 });
-
-// Fallback analysis when AI is not available
-function generateFallbackAnalysis(formType: string, answers: Record<string, any>) {
-  if (formType === "ergos") {
-    // Calculate ERGOS scores
-    const tabelaA = (answers.pressao_tempo || 0) + (answers.atencao || 0) + 
-                    (answers.complexidade || 0) + (answers.monotonia || 0) + 
-                    (answers.raciocinio || 0);
-    const tabelaB = (answers.iniciativa || 0) + (answers.isolamento || 0) + 
-                    (answers.horarios_turnos || 0) + (answers.relacionamentos || 0) + 
-                    (answers.demandas_gerais || 0);
-    const totalScore = (tabelaA + tabelaB) * 0.83;
-    
-    const riskLevel = totalScore <= 30 ? "baixo" : totalScore <= 50 ? "medio" : "alto";
-
-    return {
-      risk_level: riskLevel,
-      form_type: "ergos",
-      total_score: Math.round(totalScore * 100) / 100,
-      dimensions_score: {
-        "Tabela A (Cognitivos)": { score: tabelaA, risk_color: tabelaA > 25 ? "vermelho" : tabelaA > 15 ? "amarelo" : "verde" },
-        "Tabela B (Organizacionais)": { score: tabelaB, risk_color: tabelaB > 25 ? "vermelho" : tabelaB > 15 ? "amarelo" : "verde" },
-      },
-      analysis_text: `Após aplicação do ERGOS, o resultado total foi de ${totalScore.toFixed(2)} pontos. Análise automática baseada nas respostas fornecidas. Recomenda-se revisão manual por especialista em Ergonomia.`,
-      conclusion: "Os dados indicam necessidade de avaliação mais detalhada por profissional de saúde ocupacional.",
-      recommendations: [
-        "Realizar avaliação ergonômica presencial",
-        "Verificar condições do posto de trabalho",
-        "Monitorar ações do portfólio CULTURA DE CUIDADO - Saúde Mental e Qualidade de Vida na AMAGGI",
-      ],
-    };
-  } else {
-    // HSE-IT fallback
-    const dimensions = ["demandas", "relacionamentos", "controle", "apoio_chefia", "apoio_colegas", "cargo", "comunicacao_mudancas"];
-    const scores: Record<string, { score: number; risk_color: string }> = {};
-    let maxScore = 0;
-
-    dimensions.forEach(dim => {
-      const score = answers[dim] || 0;
-      scores[dim] = {
-        score,
-        risk_color: score > 50 ? "vermelho" : score > 20 ? "amarelo" : "verde"
-      };
-      if (score > maxScore) maxScore = score;
-    });
-
-    const riskLevel = maxScore > 50 ? "alto" : maxScore > 20 ? "medio" : "baixo";
-
-    return {
-      risk_level: riskLevel,
-      form_type: "hse_it",
-      total_score: maxScore,
-      dimensions_score: scores,
-      analysis_text: `Análise automática do HSE-IT. O maior percentual de fatores estressores identificado foi de ${maxScore}%. Recomenda-se revisão manual por especialista.`,
-      conclusion: "Os dados indicam necessidade de avaliação mais detalhada por profissional de saúde ocupacional.",
-      recommendations: [
-        "Realizar avaliação ergonômica presencial",
-        "Verificar condições psicossociais do ambiente de trabalho",
-        "Monitorar ações do portfólio CULTURA DE CUIDADO - Saúde Mental e Qualidade de Vida na AMAGGI",
-      ],
-    };
-  }
-}

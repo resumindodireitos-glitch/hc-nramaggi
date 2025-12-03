@@ -14,7 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { Loader2, Settings, Brain, Key, Shield, Plus, Pencil, Trash2, Save, RefreshCw, Users, History } from "lucide-react";
+import { Loader2, Settings, Brain, Key, Shield, Plus, Pencil, Trash2, Save, RefreshCw, Users, History, Eye, EyeOff, CheckCircle2, XCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 interface AIPrompt {
@@ -49,6 +49,47 @@ interface UserRole {
   user_name?: string;
 }
 
+// Provider and model configurations
+const AI_PROVIDERS = [
+  { value: "lovable", label: "Lovable AI (Gratuito)", description: "Usa modelos Gemini e GPT sem precisar de chave" },
+  { value: "openai", label: "OpenAI", description: "Requer OPENAI_API_KEY" },
+  { value: "anthropic", label: "Anthropic (Claude)", description: "Requer ANTHROPIC_API_KEY" },
+  { value: "deepseek", label: "DeepSeek", description: "Requer DEEPSEEK_API_KEY" },
+];
+
+const MODELS_BY_PROVIDER: Record<string, { value: string; label: string }[]> = {
+  lovable: [
+    { value: "google/gemini-2.5-flash", label: "Gemini 2.5 Flash (Recomendado)" },
+    { value: "google/gemini-2.5-pro", label: "Gemini 2.5 Pro" },
+    { value: "google/gemini-2.5-flash-lite", label: "Gemini 2.5 Flash Lite" },
+    { value: "openai/gpt-5", label: "GPT-5" },
+    { value: "openai/gpt-5-mini", label: "GPT-5 Mini" },
+    { value: "openai/gpt-5-nano", label: "GPT-5 Nano" },
+  ],
+  openai: [
+    { value: "gpt-4o", label: "GPT-4o" },
+    { value: "gpt-4o-mini", label: "GPT-4o Mini" },
+    { value: "gpt-4-turbo", label: "GPT-4 Turbo" },
+    { value: "gpt-3.5-turbo", label: "GPT-3.5 Turbo" },
+  ],
+  anthropic: [
+    { value: "claude-sonnet-4-20250514", label: "Claude Sonnet 4 (Recomendado)" },
+    { value: "claude-3-5-sonnet-20241022", label: "Claude 3.5 Sonnet" },
+    { value: "claude-3-5-haiku-20241022", label: "Claude 3.5 Haiku (Rápido)" },
+    { value: "claude-3-opus-20240229", label: "Claude 3 Opus" },
+  ],
+  deepseek: [
+    { value: "deepseek-chat", label: "DeepSeek Chat" },
+    { value: "deepseek-coder", label: "DeepSeek Coder" },
+  ],
+};
+
+const API_KEY_SETTINGS = [
+  { key: "OPENAI_API_KEY", provider: "openai", label: "OpenAI API Key", placeholder: "sk-..." },
+  { key: "ANTHROPIC_API_KEY", provider: "anthropic", label: "Anthropic API Key", placeholder: "sk-ant-..." },
+  { key: "DEEPSEEK_API_KEY", provider: "deepseek", label: "DeepSeek API Key", placeholder: "sk-..." },
+];
+
 export default function AdminSettings() {
   const navigate = useNavigate();
   const { user, isAdmin } = useAuthContext();
@@ -63,7 +104,6 @@ export default function AdminSettings() {
   // Dialog states
   const [promptDialogOpen, setPromptDialogOpen] = useState(false);
   const [editingPrompt, setEditingPrompt] = useState<AIPrompt | null>(null);
-  const [roleDialogOpen, setRoleDialogOpen] = useState(false);
   
   // Form states for prompt
   const [promptForm, setPromptForm] = useState({
@@ -78,6 +118,11 @@ export default function AdminSettings() {
     is_active: false
   });
 
+  // API Key visibility states
+  const [visibleKeys, setVisibleKeys] = useState<Record<string, boolean>>({});
+  const [keyInputs, setKeyInputs] = useState<Record<string, string>>({});
+  const [savingKey, setSavingKey] = useState<string | null>(null);
+
   useEffect(() => {
     checkSuperAdmin();
   }, [user]);
@@ -89,7 +134,6 @@ export default function AdminSettings() {
     }
 
     try {
-      // Check if user has super_admin role
       const { data: roleData, error } = await supabase
         .from("user_roles")
         .select("role")
@@ -97,23 +141,19 @@ export default function AdminSettings() {
         .eq("role", "super_admin")
         .maybeSingle();
 
-      if (error) {
-        console.error("Error checking role:", error);
-      }
+      if (error) console.error("Error checking role:", error);
 
       const hasSuperAdmin = !!roleData;
       setIsSuperAdmin(hasSuperAdmin);
 
-      // Check if any super admin exists
       const { data: anySuperAdmin } = await supabase
         .from("user_roles")
         .select("id")
         .eq("role", "super_admin")
         .limit(1);
 
-      // If no super admin exists and user is admin, allow them to become one
       if (!anySuperAdmin?.length && isAdmin) {
-        setIsSuperAdmin(true); // Temporarily allow access to set up
+        setIsSuperAdmin(true);
       }
 
       if (hasSuperAdmin || (!anySuperAdmin?.length && isAdmin)) {
@@ -132,42 +172,31 @@ export default function AdminSettings() {
   const loadData = async () => {
     setLoading(true);
     try {
-      // Load prompts
-      const { data: promptsData } = await supabase
-        .from("ai_prompts")
-        .select("*")
-        .order("form_type", { ascending: true });
+      const [promptsRes, settingsRes, rolesRes] = await Promise.all([
+        supabase.from("ai_prompts").select("*").order("form_type"),
+        supabase.from("system_settings").select("*").order("key"),
+        supabase.from("user_roles").select("*").order("created_at", { ascending: false })
+      ]);
       
-      if (promptsData) setPrompts(promptsData as AIPrompt[]);
+      if (promptsRes.data) setPrompts(promptsRes.data as AIPrompt[]);
+      if (settingsRes.data) {
+        setSettings(settingsRes.data as SystemSetting[]);
+        // Initialize key inputs
+        const inputs: Record<string, string> = {};
+        settingsRes.data.forEach(s => {
+          inputs[s.key] = s.value || "";
+        });
+        setKeyInputs(inputs);
+      }
 
-      // Load settings
-      const { data: settingsData } = await supabase
-        .from("system_settings")
-        .select("*")
-        .order("key", { ascending: true });
-      
-      if (settingsData) setSettings(settingsData as SystemSetting[]);
-
-      // Load user roles with profile info
-      const { data: rolesData } = await supabase
-        .from("user_roles")
-        .select(`
-          id,
-          user_id,
-          role,
-          created_at
-        `)
-        .order("created_at", { ascending: false });
-
-      if (rolesData) {
-        // Fetch profiles for each user
-        const userIds = rolesData.map(r => r.user_id);
+      if (rolesRes.data) {
+        const userIds = rolesRes.data.map(r => r.user_id);
         const { data: profiles } = await supabase
           .from("profiles")
           .select("id, full_name, email")
           .in("id", userIds);
 
-        const enrichedRoles = rolesData.map(role => {
+        const enrichedRoles = rolesRes.data.map(role => {
           const profile = profiles?.find(p => p.id === role.user_id);
           return {
             ...role,
@@ -239,11 +268,7 @@ export default function AdminSettings() {
     if (!confirm("Tem certeza que deseja excluir este prompt?")) return;
 
     try {
-      const { error } = await supabase
-        .from("ai_prompts")
-        .delete()
-        .eq("id", id);
-
+      const { error } = await supabase.from("ai_prompts").delete().eq("id", id);
       if (error) throw error;
       toast.success("Prompt excluído!");
       loadData();
@@ -255,7 +280,6 @@ export default function AdminSettings() {
 
   const handleTogglePromptActive = async (prompt: AIPrompt) => {
     try {
-      // If activating, deactivate others of the same form_type
       if (!prompt.is_active) {
         await supabase
           .from("ai_prompts")
@@ -277,19 +301,32 @@ export default function AdminSettings() {
     }
   };
 
-  const handleUpdateSetting = async (setting: SystemSetting, newValue: string) => {
+  const handleSaveApiKey = async (keyName: string) => {
+    setSavingKey(keyName);
     try {
-      const { error } = await supabase
-        .from("system_settings")
-        .update({ value: newValue, updated_at: new Date().toISOString() })
-        .eq("id", setting.id);
-
-      if (error) throw error;
-      toast.success("Configuração atualizada!");
+      const value = keyInputs[keyName];
+      const existing = settings.find(s => s.key === keyName);
+      
+      if (existing) {
+        const { error } = await supabase
+          .from("system_settings")
+          .update({ value, updated_at: new Date().toISOString() })
+          .eq("id", existing.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from("system_settings")
+          .insert({ key: keyName, value, is_secret: true });
+        if (error) throw error;
+      }
+      
+      toast.success("Chave salva com sucesso!");
       loadData();
     } catch (error) {
-      console.error("Error updating setting:", error);
-      toast.error("Erro ao atualizar configuração");
+      console.error("Error saving API key:", error);
+      toast.error("Erro ao salvar chave");
+    } finally {
+      setSavingKey(null);
     }
   };
 
@@ -297,10 +334,7 @@ export default function AdminSettings() {
     try {
       const { error } = await supabase
         .from("user_roles")
-        .upsert({
-          user_id: userId,
-          role: "super_admin"
-        }, { onConflict: "user_id,role" });
+        .upsert({ user_id: userId, role: "super_admin" }, { onConflict: "user_id,role" });
 
       if (error) throw error;
       toast.success("Usuário promovido a Super Admin!");
@@ -315,11 +349,7 @@ export default function AdminSettings() {
     if (!confirm("Tem certeza que deseja remover este papel?")) return;
 
     try {
-      const { error } = await supabase
-        .from("user_roles")
-        .delete()
-        .eq("id", roleId);
-
+      const { error } = await supabase.from("user_roles").delete().eq("id", roleId);
       if (error) throw error;
       toast.success("Papel removido!");
       loadData();
@@ -360,6 +390,17 @@ export default function AdminSettings() {
     setPromptDialogOpen(true);
   };
 
+  const getProviderLabel = (provider: string) => {
+    return AI_PROVIDERS.find(p => p.value === provider)?.label || provider;
+  };
+
+  const hasApiKeyConfigured = (provider: string) => {
+    const keyConfig = API_KEY_SETTINGS.find(k => k.provider === provider);
+    if (!keyConfig) return true; // Lovable doesn't need key
+    const setting = settings.find(s => s.key === keyConfig.key);
+    return setting?.value && setting.value.length > 0;
+  };
+
   if (loading) {
     return (
       <AppLayout>
@@ -385,7 +426,6 @@ export default function AdminSettings() {
   return (
     <AppLayout>
       <div className="space-y-6">
-        {/* Header */}
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
@@ -393,7 +433,7 @@ export default function AdminSettings() {
               Configurações do Sistema
             </h1>
             <p className="text-muted-foreground">
-              Gerenciamento de IA, prompts e permissões (Super Admin)
+              Gerenciamento de IA, chaves de API e permissões
             </p>
           </div>
           <Button variant="outline" onClick={loadData}>
@@ -402,8 +442,12 @@ export default function AdminSettings() {
           </Button>
         </div>
 
-        <Tabs defaultValue="prompts" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-4">
+        <Tabs defaultValue="apikeys" className="space-y-4">
+          <TabsList className="grid w-full grid-cols-5">
+            <TabsTrigger value="apikeys" className="flex items-center gap-2">
+              <Key className="h-4 w-4" />
+              Chaves API
+            </TabsTrigger>
             <TabsTrigger value="prompts" className="flex items-center gap-2">
               <Brain className="h-4 w-4" />
               Prompts IA
@@ -422,6 +466,117 @@ export default function AdminSettings() {
             </TabsTrigger>
           </TabsList>
 
+          {/* API Keys Tab */}
+          <TabsContent value="apikeys" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Key className="h-5 w-5 text-primary" />
+                  Chaves de API para Provedores de IA
+                </CardTitle>
+                <CardDescription>
+                  Configure as chaves de API para usar diferentes provedores de IA. O Lovable AI já vem configurado e não precisa de chave.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Lovable AI Card */}
+                <div className="p-4 rounded-lg border border-primary/30 bg-primary/5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
+                        <Brain className="h-5 w-5 text-primary" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold">Lovable AI</h3>
+                        <p className="text-sm text-muted-foreground">Acesso a modelos Gemini e GPT sem configuração adicional</p>
+                      </div>
+                    </div>
+                    <Badge variant="default" className="bg-green-500/20 text-green-700 border-green-500/30">
+                      <CheckCircle2 className="h-3 w-3 mr-1" />
+                      Ativo
+                    </Badge>
+                  </div>
+                </div>
+
+                {/* External Providers */}
+                {API_KEY_SETTINGS.map((keyConfig) => {
+                  const currentValue = keyInputs[keyConfig.key] || "";
+                  const isConfigured = currentValue && currentValue.length > 0;
+                  const isVisible = visibleKeys[keyConfig.key];
+                  
+                  return (
+                    <div key={keyConfig.key} className="p-4 rounded-lg border bg-card">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
+                            <Key className="h-5 w-5 text-muted-foreground" />
+                          </div>
+                          <div>
+                            <h3 className="font-semibold">{keyConfig.label}</h3>
+                          <p className="text-sm text-muted-foreground">
+                              {AI_PROVIDERS.find(p => p.value === keyConfig.provider)?.description || `Para usar modelos ${keyConfig.provider}`}
+                            </p>
+                          </div>
+                        </div>
+                        {isConfigured ? (
+                          <Badge variant="outline" className="bg-green-500/10 text-green-700 border-green-500/30">
+                            <CheckCircle2 className="h-3 w-3 mr-1" />
+                            Configurada
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="bg-amber-500/10 text-amber-700 border-amber-500/30">
+                            <XCircle className="h-3 w-3 mr-1" />
+                            Não configurada
+                          </Badge>
+                        )}
+                      </div>
+                      
+                      <div className="mt-4 flex gap-2">
+                        <div className="relative flex-1">
+                          <Input
+                            type={isVisible ? "text" : "password"}
+                            value={currentValue}
+                            onChange={(e) => setKeyInputs({ ...keyInputs, [keyConfig.key]: e.target.value })}
+                            placeholder={keyConfig.placeholder}
+                            className="pr-10 font-mono text-sm"
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="absolute right-0 top-0 h-full px-3"
+                            onClick={() => setVisibleKeys({ ...visibleKeys, [keyConfig.key]: !isVisible })}
+                          >
+                            {isVisible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          </Button>
+                        </div>
+                        <Button
+                          onClick={() => handleSaveApiKey(keyConfig.key)}
+                          disabled={savingKey === keyConfig.key}
+                        >
+                          {savingKey === keyConfig.key ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Save className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                <div className="p-4 rounded-lg bg-muted/50 border border-dashed">
+                  <h4 className="font-medium text-sm mb-2">Como obter as chaves?</h4>
+                  <ul className="text-sm text-muted-foreground space-y-1">
+                    <li>• <strong>OpenAI:</strong> <a href="https://platform.openai.com/api-keys" target="_blank" className="text-primary hover:underline">platform.openai.com/api-keys</a></li>
+                    <li>• <strong>Anthropic:</strong> <a href="https://console.anthropic.com/" target="_blank" className="text-primary hover:underline">console.anthropic.com</a></li>
+                    <li>• <strong>DeepSeek:</strong> <a href="https://platform.deepseek.com/" target="_blank" className="text-primary hover:underline">platform.deepseek.com</a></li>
+                  </ul>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
           {/* Prompts Tab */}
           <TabsContent value="prompts" className="space-y-4">
             <Card>
@@ -430,7 +585,7 @@ export default function AdminSettings() {
                   <div>
                     <CardTitle>Gerenciamento de Prompts</CardTitle>
                     <CardDescription>
-                      Configure os prompts de IA para cada tipo de formulário
+                      Configure os prompts de IA para cada tipo de formulário. Escolha o provedor e modelo desejado.
                     </CardDescription>
                   </div>
                   <Dialog open={promptDialogOpen} onOpenChange={(open) => {
@@ -449,7 +604,7 @@ export default function AdminSettings() {
                           {editingPrompt ? "Editar Prompt" : "Novo Prompt de IA"}
                         </DialogTitle>
                         <DialogDescription>
-                          Configure o prompt que será usado para análise do formulário
+                          Configure o prompt e escolha o provedor/modelo para análise
                         </DialogDescription>
                       </DialogHeader>
                       <div className="space-y-4 py-4">
@@ -489,40 +644,64 @@ export default function AdminSettings() {
                           />
                         </div>
 
-                        <div className="grid gap-4 md:grid-cols-3">
-                          <div className="space-y-2">
-                            <Label>Provider</Label>
-                            <Select
-                              value={promptForm.provider}
-                              onValueChange={(v) => setPromptForm({ ...promptForm, provider: v })}
-                            >
-                              <SelectTrigger>
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="lovable">Lovable AI</SelectItem>
-                                <SelectItem value="openai">OpenAI</SelectItem>
-                                <SelectItem value="anthropic">Anthropic</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <div className="space-y-2">
-                            <Label>Modelo</Label>
-                            <Select
-                              value={promptForm.model}
-                              onValueChange={(v) => setPromptForm({ ...promptForm, model: v })}
-                            >
-                              <SelectTrigger>
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="google/gemini-2.5-flash">Gemini 2.5 Flash</SelectItem>
-                                <SelectItem value="google/gemini-2.5-pro">Gemini 2.5 Pro</SelectItem>
-                                <SelectItem value="openai/gpt-5">GPT-5</SelectItem>
-                                <SelectItem value="openai/gpt-5-mini">GPT-5 Mini</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
+                        {/* Provider Selection */}
+                        <div className="space-y-2">
+                          <Label>Provedor de IA *</Label>
+                          <Select
+                            value={promptForm.provider}
+                            onValueChange={(v) => {
+                              const models = MODELS_BY_PROVIDER[v] || [];
+                              setPromptForm({ 
+                                ...promptForm, 
+                                provider: v, 
+                                model: models[0]?.value || ""
+                              });
+                            }}
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {AI_PROVIDERS.map((provider) => (
+                                <SelectItem key={provider.value} value={provider.value}>
+                                  <div className="flex items-center gap-2">
+                                    <span>{provider.label}</span>
+                                    {!hasApiKeyConfigured(provider.value) && provider.value !== "lovable" && (
+                                      <Badge variant="outline" className="text-xs bg-amber-500/10 text-amber-700">
+                                        Sem chave
+                                      </Badge>
+                                    )}
+                                  </div>
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <p className="text-xs text-muted-foreground">
+                            {AI_PROVIDERS.find(p => p.value === promptForm.provider)?.description}
+                          </p>
+                        </div>
+
+                        {/* Model Selection */}
+                        <div className="space-y-2">
+                          <Label>Modelo *</Label>
+                          <Select
+                            value={promptForm.model}
+                            onValueChange={(v) => setPromptForm({ ...promptForm, model: v })}
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {(MODELS_BY_PROVIDER[promptForm.provider] || []).map((model) => (
+                                <SelectItem key={model.value} value={model.value}>
+                                  {model.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="grid gap-4 md:grid-cols-2">
                           <div className="space-y-2">
                             <Label>Temperatura ({promptForm.temperature})</Label>
                             <Input
@@ -532,6 +711,19 @@ export default function AdminSettings() {
                               step="0.1"
                               value={promptForm.temperature}
                               onChange={(e) => setPromptForm({ ...promptForm, temperature: parseFloat(e.target.value) })}
+                            />
+                            <p className="text-xs text-muted-foreground">
+                              Menor = mais focado, Maior = mais criativo
+                            </p>
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Max Tokens</Label>
+                            <Input
+                              type="number"
+                              value={promptForm.max_tokens}
+                              onChange={(e) => setPromptForm({ ...promptForm, max_tokens: parseInt(e.target.value) })}
+                              min={100}
+                              max={8000}
                             />
                           </div>
                         </div>
@@ -574,8 +766,8 @@ export default function AdminSettings() {
                     <TableRow>
                       <TableHead>Nome</TableHead>
                       <TableHead>Tipo</TableHead>
+                      <TableHead>Provedor</TableHead>
                       <TableHead>Modelo</TableHead>
-                      <TableHead>Versão</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead className="text-right">Ações</TableHead>
                     </TableRow>
@@ -586,7 +778,7 @@ export default function AdminSettings() {
                         <TableCell>
                           <div>
                             <p className="font-medium">{prompt.name}</p>
-                            <p className="text-sm text-muted-foreground">{prompt.description}</p>
+                            <p className="text-sm text-muted-foreground truncate max-w-[200px]">{prompt.description}</p>
                           </div>
                         </TableCell>
                         <TableCell>
@@ -594,8 +786,12 @@ export default function AdminSettings() {
                             {prompt.form_type === "hse_it" ? "HSE-IT" : prompt.form_type === "ergos" ? "ERGOS" : "Geral"}
                           </Badge>
                         </TableCell>
-                        <TableCell className="text-sm">{prompt.model}</TableCell>
-                        <TableCell>v{prompt.version}</TableCell>
+                        <TableCell>
+                          <Badge variant={prompt.provider === "lovable" ? "default" : "secondary"}>
+                            {getProviderLabel(prompt.provider)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-sm font-mono">{prompt.model}</TableCell>
                         <TableCell>
                           <Switch
                             checked={prompt.is_active || false}
@@ -604,11 +800,7 @@ export default function AdminSettings() {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => openEditPrompt(prompt)}
-                            >
+                            <Button variant="ghost" size="icon" onClick={() => openEditPrompt(prompt)}>
                               <Pencil className="h-4 w-4" />
                             </Button>
                             <Button
@@ -641,15 +833,15 @@ export default function AdminSettings() {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Key className="h-5 w-5" />
-                  Configurações Gerais
+                  <Settings className="h-5 w-5" />
+                  Outras Configurações
                 </CardTitle>
                 <CardDescription>
-                  Configurações do sistema e chaves de API
+                  Configurações gerais do sistema
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                {settings.map((setting) => (
+                {settings.filter(s => !API_KEY_SETTINGS.some(k => k.key === s.key)).map((setting) => (
                   <div key={setting.id} className="flex items-center justify-between p-4 border rounded-lg">
                     <div className="flex-1">
                       <Label className="font-medium">{setting.key}</Label>
@@ -659,40 +851,32 @@ export default function AdminSettings() {
                       <Input
                         type={setting.is_secret ? "password" : "text"}
                         defaultValue={setting.value || ""}
-                        onBlur={(e) => {
+                        onBlur={async (e) => {
                           if (e.target.value !== setting.value) {
-                            handleUpdateSetting(setting, e.target.value);
+                            const { error } = await supabase
+                              .from("system_settings")
+                              .update({ value: e.target.value, updated_at: new Date().toISOString() })
+                              .eq("id", setting.id);
+                            if (error) toast.error("Erro ao salvar");
+                            else toast.success("Salvo!");
                           }
                         }}
-                        placeholder={setting.is_secret ? "••••••••" : "Valor"}
+                        placeholder="Valor"
                       />
-                      {setting.is_secret && (
-                        <Badge variant="secondary">
-                          <Key className="h-3 w-3 mr-1" />
-                          Secret
-                        </Badge>
-                      )}
                     </div>
                   </div>
                 ))}
-
-                <div className="border-t pt-4 mt-4">
-                  <h3 className="font-medium mb-3">Adicionar Chave de API Externa</h3>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Para usar provedores externos (OpenAI, Anthropic), adicione as chaves através do painel de secrets do Lovable Cloud.
+                {settings.filter(s => !API_KEY_SETTINGS.some(k => k.key === s.key)).length === 0 && (
+                  <p className="text-center py-8 text-muted-foreground">
+                    Nenhuma configuração adicional cadastrada
                   </p>
-                  <Button variant="outline">
-                    <Key className="h-4 w-4 mr-2" />
-                    Gerenciar Secrets
-                  </Button>
-                </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
 
           {/* Roles Tab */}
           <TabsContent value="roles" className="space-y-4">
-            {/* Self-promotion card if no super admin exists */}
             {userRoles.filter(r => r.role === "super_admin").length === 0 && isAdmin && (
               <Card className="border-primary/50 bg-primary/5">
                 <CardHeader>
@@ -702,10 +886,7 @@ export default function AdminSettings() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <Button 
-                    onClick={() => handlePromoteToSuperAdmin(user?.id || "")}
-                    className="gradient-primary"
-                  >
+                  <Button onClick={() => handlePromoteToSuperAdmin(user?.id || "")} className="gradient-primary">
                     <Shield className="h-4 w-4 mr-2" />
                     Tornar-me Super Admin
                   </Button>
@@ -715,14 +896,8 @@ export default function AdminSettings() {
 
             <Card>
               <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle>Gerenciamento de Permissões</CardTitle>
-                    <CardDescription>
-                      Controle quem tem acesso de Super Admin
-                    </CardDescription>
-                  </div>
-                </div>
+                <CardTitle>Gerenciamento de Permissões</CardTitle>
+                <CardDescription>Controle quem tem acesso de Super Admin</CardDescription>
               </CardHeader>
               <CardContent>
                 <Table>
@@ -750,12 +925,7 @@ export default function AdminSettings() {
                         </TableCell>
                         <TableCell className="text-right">
                           {role.user_id !== user?.id && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleRemoveRole(role.id)}
-                              className="text-destructive"
-                            >
+                            <Button variant="ghost" size="icon" onClick={() => handleRemoveRole(role.id)} className="text-destructive">
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           )}
@@ -771,12 +941,6 @@ export default function AdminSettings() {
                     )}
                   </TableBody>
                 </Table>
-
-                <div className="border-t pt-4 mt-4">
-                  <p className="text-sm text-muted-foreground">
-                    <strong>Nota:</strong> O Super Admin tem acesso total ao sistema, incluindo gerenciamento de prompts de IA, configurações e permissões de outros usuários.
-                  </p>
-                </div>
               </CardContent>
             </Card>
           </TabsContent>
@@ -789,15 +953,12 @@ export default function AdminSettings() {
                   <History className="h-5 w-5" />
                   Log de Auditoria
                 </CardTitle>
-                <CardDescription>
-                  Histórico de ações importantes no sistema
-                </CardDescription>
+                <CardDescription>Histórico de ações importantes no sistema</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="text-center py-12 text-muted-foreground">
                   <History className="h-12 w-12 mx-auto mb-4 opacity-50" />
                   <p>Log de auditoria em implementação</p>
-                  <p className="text-sm mt-1">As ações serão registradas automaticamente</p>
                 </div>
               </CardContent>
             </Card>
