@@ -6,6 +6,9 @@ verify_jwt = false
 [functions.generate-pdf]
 verify_jwt = false
 
+[functions.generate-docx]
+verify_jwt = false
+
 [functions.generate-zip]
 verify_jwt = false
 
@@ -22,4 +25,13 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.webhook-microsoft-forms]
+verify_jwt = false
+
+[functions.calculate-fmea]
+verify_jwt = false
+
+[functions.generate-narrative-report]
+verify_jwt = false
+
+[functions.scheduled-tasks]
 verify_jwt = false
