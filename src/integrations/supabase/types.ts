@@ -1,0 +1,615 @@
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[]
+
+export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "13.0.5"
+  }
+  public: {
+    Tables: {
+      ai_prompts: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          form_type: string
+          id: string
+          is_active: boolean | null
+          max_tokens: number | null
+          model: string
+          name: string
+          output_schema: Json | null
+          provider: string
+          system_prompt: string
+          temperature: number | null
+          updated_at: string | null
+          version: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          form_type: string
+          id?: string
+          is_active?: boolean | null
+          max_tokens?: number | null
+          model?: string
+          name: string
+          output_schema?: Json | null
+          provider?: string
+          system_prompt: string
+          temperature?: number | null
+          updated_at?: string | null
+          version?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          form_type?: string
+          id?: string
+          is_active?: boolean | null
+          max_tokens?: number | null
+          model?: string
+          name?: string
+          output_schema?: Json | null
+          provider?: string
+          system_prompt?: string
+          temperature?: number | null
+          updated_at?: string | null
+          version?: number | null
+        }
+        Relationships: []
+      }
+      audit_log: {
+        Row: {
+          action: string
+          created_at: string | null
+          id: string
+          ip_address: string | null
+          new_data: Json | null
+          old_data: Json | null
+          record_id: string | null
+          table_name: string | null
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string | null
+          id?: string
+          ip_address?: string | null
+          new_data?: Json | null
+          old_data?: Json | null
+          record_id?: string | null
+          table_name?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string | null
+          id?: string
+          ip_address?: string | null
+          new_data?: Json | null
+          old_data?: Json | null
+          record_id?: string | null
+          table_name?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      departments: {
+        Row: {
+          code: string | null
+          created_at: string | null
+          description: string | null
+          id: string
+          manager_name: string | null
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          code?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          manager_name?: string | null
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          code?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          manager_name?: string | null
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      employees: {
+        Row: {
+          admission_date: string | null
+          created_at: string | null
+          email: string | null
+          id: string
+          is_active: boolean | null
+          job_role_id: string | null
+          name: string
+          registration_code: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          admission_date?: string | null
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          is_active?: boolean | null
+          job_role_id?: string | null
+          name: string
+          registration_code?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          admission_date?: string | null
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          is_active?: boolean | null
+          job_role_id?: string | null
+          name?: string
+          registration_code?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employees_job_role_id_fkey"
+            columns: ["job_role_id"]
+            isOneToOne: false
+            referencedRelation: "job_roles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      forms: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          schema: Json
+          title: string
+          type: Database["public"]["Enums"]["form_type"]
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          schema?: Json
+          title: string
+          type?: Database["public"]["Enums"]["form_type"]
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          schema?: Json
+          title?: string
+          type?: Database["public"]["Enums"]["form_type"]
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "forms_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      job_roles: {
+        Row: {
+          cbo: string | null
+          created_at: string | null
+          department_id: string | null
+          description: string | null
+          id: string
+          name: string
+          risk_category: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          cbo?: string | null
+          created_at?: string | null
+          department_id?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          risk_category?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          cbo?: string | null
+          created_at?: string | null
+          department_id?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          risk_category?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_roles_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          company: string | null
+          created_at: string | null
+          department: string | null
+          email: string
+          full_name: string
+          id: string
+          job_title: string | null
+          role: Database["public"]["Enums"]["user_role"]
+          updated_at: string | null
+        }
+        Insert: {
+          company?: string | null
+          created_at?: string | null
+          department?: string | null
+          email: string
+          full_name: string
+          id: string
+          job_title?: string | null
+          role?: Database["public"]["Enums"]["user_role"]
+          updated_at?: string | null
+        }
+        Update: {
+          company?: string | null
+          created_at?: string | null
+          department?: string | null
+          email?: string
+          full_name?: string
+          id?: string
+          job_title?: string | null
+          role?: Database["public"]["Enums"]["user_role"]
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      reports: {
+        Row: {
+          ai_analysis_text: string | null
+          ai_conclusion: string | null
+          ai_recommendations: string[] | null
+          created_at: string | null
+          dimensions_score: Json | null
+          final_text_override: string | null
+          id: string
+          is_approved: boolean | null
+          reviewer_id: string | null
+          risk_level: string | null
+          submission_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          ai_analysis_text?: string | null
+          ai_conclusion?: string | null
+          ai_recommendations?: string[] | null
+          created_at?: string | null
+          dimensions_score?: Json | null
+          final_text_override?: string | null
+          id?: string
+          is_approved?: boolean | null
+          reviewer_id?: string | null
+          risk_level?: string | null
+          submission_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          ai_analysis_text?: string | null
+          ai_conclusion?: string | null
+          ai_recommendations?: string[] | null
+          created_at?: string | null
+          dimensions_score?: Json | null
+          final_text_override?: string | null
+          id?: string
+          is_approved?: boolean | null
+          reviewer_id?: string | null
+          risk_level?: string | null
+          submission_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reports_reviewer_id_fkey"
+            columns: ["reviewer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reports_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: true
+            referencedRelation: "submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      submissions: {
+        Row: {
+          answers: Json
+          created_at: string | null
+          employee_id: string | null
+          form_id: string
+          id: string
+          respondent_data: Json
+          status: Database["public"]["Enums"]["submission_status"] | null
+        }
+        Insert: {
+          answers?: Json
+          created_at?: string | null
+          employee_id?: string | null
+          form_id: string
+          id?: string
+          respondent_data?: Json
+          status?: Database["public"]["Enums"]["submission_status"] | null
+        }
+        Update: {
+          answers?: Json
+          created_at?: string | null
+          employee_id?: string | null
+          form_id?: string
+          id?: string
+          respondent_data?: Json
+          status?: Database["public"]["Enums"]["submission_status"] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "submissions_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "submissions_form_id_fkey"
+            columns: ["form_id"]
+            isOneToOne: false
+            referencedRelation: "forms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      system_settings: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          is_secret: boolean | null
+          key: string
+          updated_at: string | null
+          value: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_secret?: boolean | null
+          key: string
+          updated_at?: string | null
+          value?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_secret?: boolean | null
+          key?: string
+          updated_at?: string | null
+          value?: string | null
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string | null
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      get_user_role: {
+        Args: { user_id: string }
+        Returns: Database["public"]["Enums"]["user_role"]
+      }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      is_admin: { Args: { user_id: string }; Returns: boolean }
+      is_super_admin: { Args: { _user_id: string }; Returns: boolean }
+    }
+    Enums: {
+      app_role: "super_admin" | "admin_hc" | "employee_amaggi"
+      form_type: "hse_it" | "ergos"
+      submission_status: "pending_ai" | "processed" | "approved"
+      user_role: "admin_hc" | "employee_amaggi"
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
+}
+
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
+
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
+
+export type Tables<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      Row: infer R
+    }
+    ? R
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R
+      }
+      ? R
+      : never
+    : never
+
+export type TablesInsert<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Insert: infer I
+    }
+    ? I
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Insert: infer I
+      }
+      ? I
+      : never
+    : never
+
+export type TablesUpdate<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Update: infer U
+    }
+    ? U
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Update: infer U
+      }
+      ? U
+      : never
+    : never
+
+export type Enums<
+  DefaultSchemaEnumNameOrOptions extends
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never = never,
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+    : never
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
+
+export const Constants = {
+  public: {
+    Enums: {
+      app_role: ["super_admin", "admin_hc", "employee_amaggi"],
+      form_type: ["hse_it", "ergos"],
+      submission_status: ["pending_ai", "processed", "approved"],
+      user_role: ["admin_hc", "employee_amaggi"],
+    },
+  },
+} as const
