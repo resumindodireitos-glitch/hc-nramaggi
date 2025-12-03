@@ -31,6 +31,7 @@ import SystemLogs from "./pages/SystemLogs";
 import Profile from "./pages/Profile";
 import SystemUpdates from "./pages/SystemUpdates";
 import LGPDManagement from "./pages/LGPDManagement";
+import RiskMatrixDashboard from "./pages/RiskMatrixDashboard";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -232,6 +233,14 @@ const App = () => (
               element={
                 <ProtectedRoute requireAdmin>
                   <LGPDManagement />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/risk-matrix"
+              element={
+                <ProtectedRoute requireAdmin>
+                  <RiskMatrixDashboard />
                 </ProtectedRoute>
               }
             />
