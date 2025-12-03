@@ -22,6 +22,9 @@ import ReviewReport from "./pages/ReviewReport";
 import UserManagement from "./pages/UserManagement";
 import BulkGeneration from "./pages/BulkGeneration";
 import OrganizationManagement from "./pages/OrganizationManagement";
+import AIPromptsManagement from "./pages/AIPromptsManagement";
+import SubmissionsManagement from "./pages/SubmissionsManagement";
+import SystemLogs from "./pages/SystemLogs";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -156,6 +159,30 @@ const App = () => (
               element={
                 <ProtectedRoute requireAdmin>
                   <AdminSettings />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/prompts"
+              element={
+                <ProtectedRoute requireAdmin>
+                  <AIPromptsManagement />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/submissions"
+              element={
+                <ProtectedRoute requireAdmin>
+                  <SubmissionsManagement />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/logs"
+              element={
+                <ProtectedRoute requireAdmin>
+                  <SystemLogs />
                 </ProtectedRoute>
               }
             />
