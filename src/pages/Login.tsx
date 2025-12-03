@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { Loader2, Shield, Lock, Mail } from "lucide-react";
-import logoHC from "@/assets/logo-hc.jpg";
+import logoHC from "@/assets/logo-hc-new.png";
 import logoAmaggi from "@/assets/logo-amaggi.png";
 
 export default function Login() {
@@ -68,9 +68,9 @@ export default function Login() {
           
           <div className="space-y-6">
             <h1 className="text-4xl xl:text-5xl font-bold leading-tight">
-              Plataforma de
+              HC Consultoria
               <br />
-              <span className="text-gradient">Análise Ergonômica</span>
+              <span className="text-gradient">Ergonomia & Fisioterapia</span>
             </h1>
             <p className="text-lg text-white/70 max-w-md leading-relaxed">
               Sistema integrado para avaliação de riscos ergonômicos e psicossociais, 
@@ -93,7 +93,7 @@ export default function Login() {
           </div>
           
           <p className="text-sm text-white/40">
-            © {new Date().getFullYear()} HC Consultoria em Ergonomia
+            © {new Date().getFullYear()} HC Consultoria em Ergonomia e Fisioterapia
           </p>
         </div>
       </div>

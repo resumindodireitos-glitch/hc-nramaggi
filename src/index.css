@@ -146,7 +146,7 @@
   }
 
   .text-gradient {
-    @apply bg-gradient-to-r from-primary to-success bg-clip-text text-transparent;
+    @apply bg-gradient-to-r from-primary to-info bg-clip-text text-transparent;
   }
 
   .btn-shine {
