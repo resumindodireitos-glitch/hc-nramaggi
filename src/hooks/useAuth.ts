@@ -11,13 +11,11 @@ interface UserWithRoles extends Profile {
 }
 
 export function useAuth() {
-  // All useState hooks first - always in same order
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<UserWithRoles | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // useCallback hook
   const fetchProfile = useCallback(async (userId: string, userEmail?: string, userName?: string) => {
     try {
       const { data: profileData, error: profileError } = await supabase
@@ -98,51 +96,38 @@ export function useAuth() {
     }
   }, []);
 
-  // useEffect hook - always runs
   useEffect(() => {
     let mounted = true;
 
-    const initAuth = async () => {
-      try {
-        const { data: { session: currentSession } } = await supabase.auth.getSession();
-        
-        if (!mounted) return;
-        
-        setSession(currentSession);
-        setUser(currentSession?.user ?? null);
-        
-        if (currentSession?.user) {
-          const email = currentSession.user.email;
-          const name = currentSession.user.user_metadata?.full_name;
-          await fetchProfile(currentSession.user.id, email, name);
-        } else {
-          setLoading(false);
-        }
-      } catch (error) {
-        console.error("Error initializing auth:", error);
-        if (mounted) {
-          setLoading(false);
-        }
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!mounted) return;
+      
+      setSession(session);
+      setUser(session?.user ?? null);
+      
+      if (session?.user) {
+        const email = session.user.email;
+        const name = session.user.user_metadata?.full_name;
+        setTimeout(() => {
+          if (mounted) fetchProfile(session.user.id, email, name);
+        }, 0);
+      } else {
+        setLoading(false);
       }
-    };
-
-    initAuth();
+    });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, newSession) => {
+      (_event, session) => {
         if (!mounted) return;
         
-        setSession(newSession);
-        setUser(newSession?.user ?? null);
+        setSession(session);
+        setUser(session?.user ?? null);
         
-        if (newSession?.user) {
-          const email = newSession.user.email;
-          const name = newSession.user.user_metadata?.full_name;
-          // Use setTimeout to avoid potential Supabase deadlock
+        if (session?.user) {
+          const email = session.user.email;
+          const name = session.user.user_metadata?.full_name;
           setTimeout(() => {
-            if (mounted) {
-              fetchProfile(newSession.user.id, email, name);
-            }
+            if (mounted) fetchProfile(session.user.id, email, name);
           }, 0);
         } else {
           setProfile(null);
@@ -157,14 +142,12 @@ export function useAuth() {
     };
   }, [fetchProfile]);
 
-  // Sign in function
-  const signIn = useCallback(async (email: string, password: string) => {
+  const signIn = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     return { error };
-  }, []);
+  };
 
-  // Sign up function
-  const signUp = useCallback(async (
+  const signUp = async (
     email: string, 
     password: string, 
     fullName: string, 
@@ -206,28 +189,25 @@ export function useAuth() {
     }
 
     return { error };
-  }, []);
+  };
 
-  // Sign out function
-  const signOut = useCallback(async () => {
+  const signOut = async () => {
     setProfile(null);
     const { error } = await supabase.auth.signOut();
     return { error };
-  }, []);
+  };
 
-  // Refresh profile function
-  const refreshProfile = useCallback(async () => {
-    if (user) {
-      await fetchProfile(user.id, user.email, user.user_metadata?.full_name);
-    }
-  }, [user, fetchProfile]);
-
-  // Computed values
   const isAdmin = profile?.role === "admin_hc" || 
                   profile?.appRoles?.includes("admin_hc") || 
                   profile?.appRoles?.includes("super_admin");
   
   const isSuperAdmin = profile?.appRoles?.includes("super_admin") || false;
+
+  const refreshProfile = async () => {
+    if (user) {
+      await fetchProfile(user.id, user.email, user.user_metadata?.full_name);
+    }
+  };
 
   return {
     user,
