@@ -24,6 +24,7 @@ import UserManagement from "./pages/UserManagement";
 import BulkGeneration from "./pages/BulkGeneration";
 import OrganizationManagement from "./pages/OrganizationManagement";
 import AIPromptsManagement from "./pages/AIPromptsManagement";
+import AIAgents from "./pages/AIAgents";
 import SubmissionsManagement from "./pages/SubmissionsManagement";
 import SystemLogs from "./pages/SystemLogs";
 import NotFound from "./pages/NotFound";
@@ -171,6 +172,14 @@ const App = () => (
               element={
                 <ProtectedRoute requireAdmin>
                   <AIPromptsManagement />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/agents"
+              element={
+                <ProtectedRoute requireAdmin>
+                  <AIAgents />
                 </ProtectedRoute>
               }
             />

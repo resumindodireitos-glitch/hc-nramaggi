@@ -14,8 +14,45 @@ export type Database = {
   }
   public: {
     Tables: {
+      agent_documents: {
+        Row: {
+          agent_id: string
+          created_at: string | null
+          document_id: string
+          id: string
+        }
+        Insert: {
+          agent_id: string
+          created_at?: string | null
+          document_id: string
+          id?: string
+        }
+        Update: {
+          agent_id?: string
+          created_at?: string | null
+          document_id?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_documents_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "ai_prompts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_documents_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "knowledge_documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_prompts: {
         Row: {
+          agent_type: string | null
           created_at: string | null
           created_by: string | null
           description: string | null
@@ -27,12 +64,15 @@ export type Database = {
           name: string
           output_schema: Json | null
           provider: string
+          rag_top_k: number | null
           system_prompt: string
           temperature: number | null
           updated_at: string | null
+          use_rag: boolean | null
           version: number | null
         }
         Insert: {
+          agent_type?: string | null
           created_at?: string | null
           created_by?: string | null
           description?: string | null
@@ -44,12 +84,15 @@ export type Database = {
           name: string
           output_schema?: Json | null
           provider?: string
+          rag_top_k?: number | null
           system_prompt: string
           temperature?: number | null
           updated_at?: string | null
+          use_rag?: boolean | null
           version?: number | null
         }
         Update: {
+          agent_type?: string | null
           created_at?: string | null
           created_by?: string | null
           description?: string | null
@@ -61,9 +104,11 @@ export type Database = {
           name?: string
           output_schema?: Json | null
           provider?: string
+          rag_top_k?: number | null
           system_prompt?: string
           temperature?: number | null
           updated_at?: string | null
+          use_rag?: boolean | null
           version?: number | null
         }
         Relationships: []
@@ -133,6 +178,44 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      document_chunks: {
+        Row: {
+          chunk_index: number
+          content: string
+          created_at: string | null
+          document_id: string
+          embedding: string | null
+          id: string
+          metadata: Json | null
+        }
+        Insert: {
+          chunk_index: number
+          content: string
+          created_at?: string | null
+          document_id: string
+          embedding?: string | null
+          id?: string
+          metadata?: Json | null
+        }
+        Update: {
+          chunk_index?: number
+          content?: string
+          created_at?: string | null
+          document_id?: string
+          embedding?: string | null
+          id?: string
+          metadata?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_chunks_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "knowledge_documents"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       employees: {
         Row: {
@@ -262,6 +345,51 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      knowledge_documents: {
+        Row: {
+          chunks_count: number | null
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          file_path: string
+          file_size: number | null
+          file_type: string
+          id: string
+          metadata: Json | null
+          name: string
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          chunks_count?: number | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          file_path: string
+          file_size?: number | null
+          file_type: string
+          id?: string
+          metadata?: Json | null
+          name: string
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          chunks_count?: number | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          file_path?: string
+          file_size?: number | null
+          file_type?: string
+          id?: string
+          metadata?: Json | null
+          name?: string
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
       }
       profiles: {
         Row: {
@@ -473,6 +601,19 @@ export type Database = {
       }
       is_admin: { Args: { user_id: string }; Returns: boolean }
       is_super_admin: { Args: { _user_id: string }; Returns: boolean }
+      search_similar_chunks: {
+        Args: {
+          agent_uuid: string
+          match_count?: number
+          query_embedding: string
+        }
+        Returns: {
+          content: string
+          document_id: string
+          id: string
+          similarity: number
+        }[]
+      }
     }
     Enums: {
       app_role: "super_admin" | "admin_hc" | "employee_amaggi"
