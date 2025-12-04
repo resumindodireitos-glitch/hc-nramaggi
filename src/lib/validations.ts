@@ -2,13 +2,17 @@ import { z } from "zod";
 
 // ========== Respondent Data Schema ==========
 export const respondentDataSchema = z.object({
-  nome: z.string().trim().min(2, "Nome deve ter pelo menos 2 caracteres").max(100, "Nome muito longo"),
+  cpf: z.string().trim().min(11, "CPF é obrigatório").max(14, "CPF inválido").optional(),
+  nome: z.string().trim().min(2, "Nome deve ter pelo menos 2 caracteres").max(100, "Nome muito longo").optional(),
   empresa: z.string().default("Amaggi"),
   setor: z.string().trim().min(1, "Setor é obrigatório").max(100, "Setor muito longo"),
   cargo: z.string().trim().min(1, "Cargo é obrigatório").max(100, "Cargo muito longo"),
   genero: z.string().optional(),
   tempo_empresa: z.string().min(1, "Tempo na empresa é obrigatório"),
   data_avaliacao: z.string().min(1, "Data de avaliação é obrigatória"),
+}).refine((data) => data.cpf || data.nome, {
+  message: "CPF ou Nome é obrigatório",
+  path: ["cpf"],
 });
 
 export type RespondentDataSchema = z.infer<typeof respondentDataSchema>;
