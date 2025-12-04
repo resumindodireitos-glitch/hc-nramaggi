@@ -101,11 +101,14 @@ interface TanguroReportTemplateProps {
   data: TanguroReportData;
 }
 
+// NRE Classification per client document:
+// Trivial (1), Tolerável (2-3), Moderado (4-9), Substancial (12-18), Intolerável (27)
 const getNREClassification = (nre: number): { label: string; color: string } => {
-  if (nre <= 8) return { label: "TRIVIAL", color: "bg-green-500" };
-  if (nre <= 27) return { label: "TOLERÁVEL", color: "bg-yellow-500" };
-  if (nre <= 60) return { label: "MODERADO", color: "bg-orange-500" };
-  return { label: "CRÍTICO", color: "bg-red-500" };
+  if (nre <= 1) return { label: "TRIVIAL", color: "bg-green-500" };
+  if (nre <= 3) return { label: "TOLERÁVEL", color: "bg-yellow-500" };
+  if (nre <= 9) return { label: "MODERADO", color: "bg-orange-500" };
+  if (nre <= 18) return { label: "SUBSTANCIAL", color: "bg-red-500" };
+  return { label: "INTOLERÁVEL", color: "bg-red-700" };
 };
 
 const getScoreBarColor = (color: string): string => {
@@ -279,23 +282,28 @@ export function TanguroReportTemplate({ data }: TanguroReportTemplateProps) {
               </thead>
               <tbody>
                 <tr>
-                  <td className="border p-2 text-center">1-8</td>
+                  <td className="border p-2 text-center">1</td>
                   <td className="border p-2"><span className="px-2 py-0.5 rounded bg-green-500 text-white text-xs">TRIVIAL</span></td>
                   <td className="border p-2">Risco aceitável, manter monitoramento</td>
                 </tr>
                 <tr className="bg-gray-50">
-                  <td className="border p-2 text-center">9-27</td>
+                  <td className="border p-2 text-center">2-3</td>
                   <td className="border p-2"><span className="px-2 py-0.5 rounded bg-yellow-500 text-black text-xs">TOLERÁVEL</span></td>
                   <td className="border p-2">Monitorar e implementar melhorias quando possível</td>
                 </tr>
                 <tr>
-                  <td className="border p-2 text-center">28-60</td>
+                  <td className="border p-2 text-center">4-9</td>
                   <td className="border p-2"><span className="px-2 py-0.5 rounded bg-orange-500 text-white text-xs">MODERADO</span></td>
                   <td className="border p-2">Ação corretiva necessária em prazo determinado</td>
                 </tr>
                 <tr className="bg-gray-50">
-                  <td className="border p-2 text-center">&gt;60</td>
-                  <td className="border p-2"><span className="px-2 py-0.5 rounded bg-red-500 text-white text-xs">CRÍTICO</span></td>
+                  <td className="border p-2 text-center">12-18</td>
+                  <td className="border p-2"><span className="px-2 py-0.5 rounded bg-red-500 text-white text-xs">SUBSTANCIAL</span></td>
+                  <td className="border p-2">Ação corretiva prioritária</td>
+                </tr>
+                <tr>
+                  <td className="border p-2 text-center">27</td>
+                  <td className="border p-2"><span className="px-2 py-0.5 rounded bg-red-700 text-white text-xs">INTOLERÁVEL</span></td>
                   <td className="border p-2">Ação imediata requerida</td>
                 </tr>
               </tbody>
@@ -366,63 +374,112 @@ export function TanguroReportTemplate({ data }: TanguroReportTemplateProps) {
         </div>
       </div>
 
-      {/* ========== PAGE 5: SCORES CHART ========== */}
+      {/* ========== PAGE 5: AVALIAÇÃO DA CARGA MENTAL ========== */}
       <div className="p-8 border-t-4 border-blue-700 page-break-before">
-        <PageHeader title="AVALIAÇÃO QUANTITATIVA" pageNum={5} />
+        <PageHeader title="AVALIAÇÃO DA CARGA MENTAL (FATORES COGNITIVOS, ORGANIZACIONAIS E RELACIONAIS)" pageNum={5} />
 
-        {/* Global Score - Matching the image design */}
-        <div className="mt-6 p-6 rounded-xl bg-gradient-to-r from-slate-50 to-blue-50 border border-slate-200">
-          <div className="flex items-start justify-between">
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <div className="h-3 w-3 rounded-full bg-blue-600 animate-pulse" />
-                <span className="text-sm font-medium text-slate-600">Pontuação Global</span>
-              </div>
-              <div className="flex items-baseline gap-1">
-                <span className="text-5xl font-bold text-slate-800">{data.globalScore}</span>
-                <span className="text-xl text-slate-400">/100</span>
-              </div>
-              <p className="text-sm text-slate-500 max-w-xs">
-                {data.riskDescription || `Carga mental ${data.riskLabel?.toLowerCase()}, requer atenção`}
-              </p>
-            </div>
-            <div className={`px-4 py-2 rounded-full border-2 font-semibold text-sm ${
-              data.riskColor === 'green' ? 'bg-emerald-100 border-emerald-400 text-emerald-700' :
-              data.riskColor === 'yellow' ? 'bg-amber-100 border-amber-400 text-amber-700' :
-              'bg-red-100 border-red-400 text-red-700'
-            }`}>
-              ↗ {data.riskLabel}
-            </div>
-          </div>
+        {/* Form Type Title */}
+        <div className="mt-4 mb-6">
+          <h3 className="text-lg font-bold text-blue-800">
+            {data.formType === "ergos" 
+              ? "ERGOS (AVALIAÇÃO DE CARGA MENTAL)" 
+              : "HSE IT (MANAGEMENT STANDARDS INDICATOR TOOL - ESTRESSE RELACIONADO AO TRABALHO)"}
+          </h3>
         </div>
 
-        {/* Blocks (for ERGOS) */}
-        {data.blocks && Object.keys(data.blocks).length > 0 && (
-          <div className="mt-6 grid grid-cols-2 gap-4">
-            {Object.entries(data.blocks).map(([blockId, block]) => (
-              <div key={blockId} className="border rounded-lg p-4">
-                <h4 className="font-semibold text-blue-700 mb-3">{block.name}</h4>
-                <p className="text-2xl font-bold text-center mb-4">{block.total}</p>
-                <div className="space-y-2">
-                  {block.dimensions.map((dim, idx) => (
-                    <div key={idx} className="flex items-center gap-2">
-                      <span className="text-xs w-24 truncate">{dim.name}</span>
-                      <div className="flex-1 bg-gray-200 rounded-full h-4 overflow-hidden">
-                        <div
-                          className={`h-full ${getScoreBarColor(dim.color)} transition-all`}
-                          style={{ width: `${(dim.score / 10) * 100}%` }}
-                        />
-                      </div>
-                      <span className="text-xs font-bold w-6 text-right">{dim.score}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
+        {/* ERGOS Format - Table with Fatores cognitivos + Pontuação */}
+        {data.formType === "ergos" && (
+          <>
+            <table className="w-full border-collapse text-sm mb-6">
+              <thead>
+                <tr className="bg-blue-100">
+                  <th className="border p-2 text-left">Fatores cognitivos</th>
+                  <th className="border p-2 w-24 text-center">Pontuação</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.dimensions.map((dim, idx) => (
+                  <tr key={idx} className={idx % 2 === 0 ? "bg-white" : "bg-gray-50"}>
+                    <td className="border p-2">{dim.name}</td>
+                    <td className="border p-2 text-center font-bold">{dim.score}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            
+            <div className="bg-blue-50 p-4 rounded-lg mb-6">
+              <p className="font-semibold">Pontuação total da carga mental: <span className="text-xl text-blue-700">{data.globalScore.toFixed(2)}</span></p>
+            </div>
+          </>
         )}
 
-        {/* Dimensions - Horizontal Bar Chart like the image */}
+        {/* HSE-IT Format - Table with dimension and percentage */}
+        {data.formType === "hse_it" && (
+          <table className="w-full border-collapse text-sm mb-6">
+            <thead>
+              <tr className="bg-green-100">
+                <th className="border p-2 text-left">Fatores</th>
+                <th className="border p-2 w-48 text-center">Distribuição do resultado por fator de estresse</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.dimensions.map((dim, idx) => {
+                const percentage = dim.normalized_score ?? dim.score;
+                const dimDescriptions: Record<string, string> = {
+                  "Demandas": "Aspectos relacionados à carga de trabalho, exigências, organização e ambiente de trabalho",
+                  "Relacionamentos": "Aspectos relacionados a comportamentos interpessoais, inaceitáveis, como assédio",
+                  "Controle": "Possibilidades de opinar sobre mudanças nos processos e controlar o ritmo de trabalho",
+                  "Apoio Chefia": "Apoio por parte dos superiores e os recursos fornecidos para resolver os problemas",
+                  "Apoio Colegas": "Comunicação interpessoal adequada e respeito às diversidades entre os trabalhadores",
+                  "Cargo": "Transparência nos critérios de promoção na carreira e reconhecimento",
+                  "Mudanças": "Participação dos trabalhadores em mudanças"
+                };
+                return (
+                  <tr key={idx} className={idx % 2 === 0 ? "bg-white" : "bg-gray-50"}>
+                    <td className="border p-2">
+                      <strong>{dim.name}</strong>
+                      {dimDescriptions[dim.name] && (
+                        <span className="text-gray-600 text-xs block">({dimDescriptions[dim.name]})</span>
+                      )}
+                    </td>
+                    <td className="border p-2 text-center font-bold text-lg">
+                      {percentage.toFixed(0)}%
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+
+        {/* Interpretation Box */}
+        <div className={`p-4 rounded-lg border-2 ${
+          data.riskColor === "green" ? "bg-green-50 border-green-300" :
+          data.riskColor === "yellow" ? "bg-yellow-50 border-yellow-300" :
+          "bg-red-50 border-red-300"
+        }`}>
+          <p className="font-semibold mb-2">Interpretação dos resultados:</p>
+          <p className="text-sm text-justify">
+            {data.riskDescription || (
+              data.formType === "ergos" 
+                ? `Na função de ${data.respondent.cargo} após aplicação do ERGOS, o resultado total foi de ${data.globalScore.toFixed(2)} pontos sendo interpretado como ${data.riskLabel?.toLowerCase() === 'satisfatório' ? 'condições de trabalho adequadas sem existência de risco em potencial, configurando fatores cognitivos em nível satisfatório para exercício da atividade laboral.' : data.riskLabel?.toLowerCase() === 'aceitável' ? 'condições de trabalho aceitáveis com atenção necessária para alguns fatores cognitivos e organizacionais.' : 'condições de trabalho que necessitam melhorias, configurando fatores de risco que requerem ação corretiva.'}`
+                : (() => {
+                    const stressDims = data.dimensions.filter(d => (d.normalized_score ?? d.score) > 0);
+                    if (stressDims.length === 0) {
+                      return `A aplicação do instrumento HSE IT resultou em 0% em todas as dimensões avaliadas (demandas, relacionamentos, controle, apoio de chefia, apoio de colegas, cargo e comunicação e mudanças) indicando ausência de riscos psicossociais identificáveis. Esse resultado demonstra que, no contexto atual, as condições psicossociais associadas à função de ${data.respondent.cargo} apresentam-se adequadas, não havendo evidências de sobrecarga, desequilíbrio no suporte organizacional ou conflitos interpessoais que possam comprometer a atividade laboral.`;
+                    }
+                    const stressText = stressDims.map(d => `${(d.normalized_score ?? d.score).toFixed(0)}% na dimensão ${d.name.toLowerCase()}`).join(", ");
+                    const zeroDims = data.dimensions.filter(d => (d.normalized_score ?? d.score) === 0);
+                    const otherText = zeroDims.length > 0 
+                      ? ` Identifica-se ainda que as demais dimensões (${zeroDims.map(d => d.name.toLowerCase()).join(", ")}), no contexto atual apresentam condições psicossociais adequadas, sem fatores estressores.`
+                      : "";
+                    return `Na aplicação do HSE IT, a função de ${data.respondent.cargo} apresentou resultado com nível de ${stressText}. Este resultado aponta possíveis fatores que podem estar diferentes da capacidade adaptativa esperada.${otherText}`;
+                  })()
+            )}
+          </p>
+        </div>
+
+        {/* Visual Bar Chart for all dimensions */}
         <div className="mt-8">
           <h3 className="font-bold text-slate-700 mb-4">Detalhamento por Dimensão</h3>
           <div className="space-y-3">
@@ -437,7 +494,7 @@ export function TanguroReportTemplate({ data }: TanguroReportTemplateProps) {
                     <span className="text-sm font-medium text-slate-700">{dim.name}</span>
                     <div className="flex items-center gap-3">
                       <span className="text-sm font-semibold text-slate-600">
-                        {displayPercent.toFixed(1)}%
+                        {data.formType === "hse_it" ? `${displayPercent.toFixed(0)}%` : displayPercent.toFixed(1)}
                       </span>
                       <span className={`px-3 py-0.5 rounded-full text-xs font-medium border ${
                         dim.color === 'green' ? 'bg-emerald-100 text-emerald-700 border-emerald-300' :
@@ -499,52 +556,69 @@ export function TanguroReportTemplate({ data }: TanguroReportTemplateProps) {
         </div>
       </div>
 
-      {/* ========== PAGE 7: RISK INVENTORY (FMEA) ========== */}
-      {data.riskMatrix && data.riskMatrix.length > 0 && (
-        <div className="p-8 border-t-4 border-blue-700 page-break-before">
-          <PageHeader title="INVENTÁRIO DE RISCOS (FMEA)" pageNum={7} />
+      {/* ========== PAGE 7: INVENTÁRIO DE RISCOS PSICOSSOCIAIS ========== */}
+      <div className="p-8 border-t-4 border-blue-700 page-break-before">
+        <PageHeader title="INVENTÁRIO DE RISCOS PSICOSSOCIAIS" pageNum={7} />
 
-          <table className="w-full border-collapse text-xs mt-6">
-            <thead>
-              <tr className="bg-blue-800 text-white">
-                <th className="border border-blue-900 p-2">Fator de Risco</th>
-                <th className="border border-blue-900 p-2">Fonte Geradora</th>
-                <th className="border border-blue-900 p-2 w-10">G</th>
-                <th className="border border-blue-900 p-2 w-10">P</th>
-                <th className="border border-blue-900 p-2 w-10">D</th>
-                <th className="border border-blue-900 p-2 w-12">NRE</th>
-                <th className="border border-blue-900 p-2 w-20">Class.</th>
-                <th className="border border-blue-900 p-2">Ação Sugerida</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.riskMatrix.map((item, idx) => {
+        <table className="w-full border-collapse text-[9px] mt-6">
+          <thead>
+            <tr className="bg-blue-800 text-white">
+              <th className="border border-blue-900 p-1.5">Nominação da atividade</th>
+              <th className="border border-blue-900 p-1.5">Perigo ou fator de risco</th>
+              <th className="border border-blue-900 p-1.5">Lesões ou agravos</th>
+              <th className="border border-blue-900 p-1.5">Fontes e circunstâncias (causas)</th>
+              <th className="border border-blue-900 p-1.5 w-16">Exposição</th>
+              <th className="border border-blue-900 p-1.5">Medidas de controles</th>
+              <th className="border border-blue-900 p-1.5 w-6">G</th>
+              <th className="border border-blue-900 p-1.5 w-6">P</th>
+              <th className="border border-blue-900 p-1.5 w-6">C</th>
+              <th className="border border-blue-900 p-1.5 w-8">NRE</th>
+              <th className="border border-blue-900 p-1.5">Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.riskMatrix && data.riskMatrix.length > 0 ? (
+              data.riskMatrix.map((item, idx) => {
                 const { label, color } = getNREClassification(item.nre);
                 return (
                   <tr key={idx} className={idx % 2 === 0 ? "bg-white" : "bg-gray-50"}>
-                    <td className="border p-2">{item.risk_factor}</td>
-                    <td className="border p-2">{item.source || "-"}</td>
-                    <td className="border p-2 text-center font-bold">{item.severity_g}</td>
-                    <td className="border p-2 text-center font-bold">{item.probability_p}</td>
-                    <td className="border p-2 text-center font-bold">{item.detection_d}</td>
-                    <td className="border p-2 text-center font-bold">{item.nre}</td>
-                    <td className="border p-2 text-center">
-                      <span className={`px-1 py-0.5 rounded text-white text-[10px] ${color}`}>
-                        {label}
-                      </span>
-                    </td>
-                    <td className="border p-2 text-[10px]">{item.suggested_action || "-"}</td>
+                    <td className="border p-1.5">Atividade laboral na função de {data.respondent.cargo}</td>
+                    <td className="border p-1.5">{item.risk_factor}</td>
+                    <td className="border p-1.5">Transtornos relacionados à saúde mental</td>
+                    <td className="border p-1.5">{item.source || "-"}</td>
+                    <td className="border p-1.5 text-center">Habitual</td>
+                    <td className="border p-1.5 text-[8px]">Manter e monitorar ações aplicáveis constantes no portfólio CULTURA DE CUIDADO - Saúde Mental e Qualidade de Vida na AMAGGI.</td>
+                    <td className="border p-1.5 text-center font-bold">{item.severity_g}</td>
+                    <td className="border p-1.5 text-center font-bold">{item.probability_p}</td>
+                    <td className="border p-1.5 text-center font-bold">{item.detection_d}</td>
+                    <td className="border p-1.5 text-center font-bold">{item.nre}</td>
+                    <td className="border p-1.5 text-[8px]">{item.suggested_action || "Conforme anexo 1 deste documento"}</td>
                   </tr>
                 );
-              })}
-            </tbody>
-          </table>
+              })
+            ) : (
+              <tr className="bg-white">
+                <td className="border p-1.5">Atividades laborais na função de {data.respondent.cargo}</td>
+                <td className="border p-1.5">Não identificado</td>
+                <td className="border p-1.5">Não identificado exposição com significância</td>
+                <td className="border p-1.5">Não identificado</td>
+                <td className="border p-1.5 text-center">Não aplicável</td>
+                <td className="border p-1.5"></td>
+                <td className="border p-1.5 text-center"></td>
+                <td className="border p-1.5 text-center"></td>
+                <td className="border p-1.5 text-center"></td>
+                <td className="border p-1.5 text-center"></td>
+                <td className="border p-1.5"></td>
+              </tr>
+            )}
+          </tbody>
+        </table>
 
-          <div className="mt-4 text-xs text-gray-500">
-            <p><strong>Legenda:</strong> G = Gravidade | P = Probabilidade | D = Detecção | NRE = Nível de Risco Ergonômico</p>
-          </div>
+        <div className="mt-4 text-xs text-gray-600 space-y-1">
+          <p><strong>Legendas:</strong> (G) Gravidade; (P) Probabilidade; (C) Controle; (NRE) Nível de Risco Ergonômico Psicossocial</p>
+          <p><strong>Legendas (NRE):</strong> Trivial (1), Tolerável (2 a 3), Moderado (4 a 9), Substancial (12 a 18), Intolerável (27)</p>
         </div>
-      )}
+      </div>
 
       {/* ========== PAGE 8: RECOMMENDATIONS ========== */}
       <div className="p-8 border-t-4 border-blue-700 page-break-before">
