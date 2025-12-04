@@ -194,11 +194,14 @@ function getDefaultAction(dimensionName: string): string {
   return actions[dimensionName] || "Avaliar e implementar medidas de controle";
 }
 
+// NRE Classification per client document:
+// Trivial (1), Tolerável (2-3), Moderado (4-9), Substancial (12-18), Intolerável (27)
 function getNREClassificationLabel(nre: number): string {
-  if (nre <= 8) return "TRIVIAL";
-  if (nre <= 27) return "TOLERÁVEL";
-  if (nre <= 60) return "MODERADO";
-  return "CRÍTICO";
+  if (nre <= 1) return "TRIVIAL";
+  if (nre <= 3) return "TOLERÁVEL";
+  if (nre <= 9) return "MODERADO";
+  if (nre <= 18) return "SUBSTANCIAL";
+  return "INTOLERÁVEL";
 }
 
 export function mapReportToTanguroFormat(

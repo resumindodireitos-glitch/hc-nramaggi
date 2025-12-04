@@ -255,7 +255,7 @@ function calculateHSEIT_Legacy(answers: Record<string, any>, thresholds: RiskThr
 }
 
 // HSE-IT Modern: Porcentagem de questões estressoras
-function calculateHSEIT_Percentage(answers: Record<string, any>, schema: any[], rules: CalculationRules, thresholds: RiskThresholds) {
+function calculateHSEIT_Percentage(answers: Record<string, any>, schema: any[], rules: CalculationRules, thresholds: RiskThresholds, cargo?: string) {
   console.log("=== HSE-IT PERCENTAGE (modern format) ===");
   const dimConfig = rules.dimensions || {
     "Demandas": { questions: ["d1","d2","d3","d4","d5","d6","d7","d8"], is_reverse_scored: false },
@@ -291,7 +291,33 @@ function calculateHSEIT_Percentage(answers: Record<string, any>, schema: any[], 
 
   const globalPercentage = totalQuestions > 0 ? Math.round((totalStressors / totalQuestions) * 100) : 0;
   const risk = getRiskLevel(globalPercentage, thresholds.levels);
-  return { global_score: globalPercentage, risk_level: risk.level, risk_label: risk.label, risk_color: risk.color, risk_description: risk.description, dimensions, calculation_method: "hseit_percentage", calculated_at: new Date().toISOString() };
+  
+  // Generate standard interpretation text per client document
+  const cargoName = cargo || "colaborador";
+  const stressDimensions = dimensions.filter((d: any) => d.normalized_score > 0);
+  let riskDescription = "";
+  
+  if (stressDimensions.length === 0) {
+    riskDescription = `A aplicação do instrumento HSE IT resultou em 0% em todas as dimensões avaliadas (demandas, relacionamentos, controle, apoio de chefia, apoio de colegas, cargo e comunicação e mudanças) indicando ausência de riscos psicossociais identificáveis. Esse resultado demonstra que, no contexto atual, as condições psicossociais associadas à função de ${cargoName} apresentam-se adequadas, não havendo evidências de sobrecarga, desequilíbrio no suporte organizacional ou conflitos interpessoais que possam comprometer a atividade laboral.`;
+  } else {
+    const stressText = stressDimensions.map((d: any) => `${d.normalized_score}% na dimensão ${d.name.toLowerCase()}`).join(", ");
+    const zeroDimensions = dimensions.filter((d: any) => d.normalized_score === 0);
+    const otherText = zeroDimensions.length > 0 
+      ? ` Identifica-se ainda que as demais dimensões (${zeroDimensions.map((d: any) => d.name.toLowerCase()).join(", ")}), no contexto atual apresentam condições psicossociais adequadas, sem fatores estressores.`
+      : "";
+    riskDescription = `Na aplicação do HSE IT, a função de ${cargoName} apresentou resultado com nível de ${stressText}. Este resultado aponta possíveis fatores que podem estar diferentes da capacidade adaptativa esperada.${otherText}`;
+  }
+  
+  return { 
+    global_score: globalPercentage, 
+    risk_level: risk.level, 
+    risk_label: risk.label, 
+    risk_color: risk.color, 
+    risk_description: riskDescription, 
+    dimensions, 
+    calculation_method: "hseit_percentage", 
+    calculated_at: new Date().toISOString() 
+  };
 }
 
 // NASA-TLX: Média simples dos 6 sliders 0-100
