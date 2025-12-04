@@ -45,12 +45,17 @@ interface FormQuestion {
   id: string;
   label: string;
   description?: string;
-  type: "text" | "textarea" | "radio" | "checkbox" | "scale" | "slider" | "select" | "info" | "weighted_radio";
-  options?: string[] | WeightedOption[];
+  type: "text" | "textarea" | "radio" | "checkbox" | "scale" | "slider" | "select" | "info" | "weighted_radio" | "likert" | "header" | "subheader";
+  options?: string[] | WeightedOption[] | LikertOption[];
   required?: boolean;
   min?: number;
   max?: number;
   dimension_group?: string;
+}
+
+interface LikertOption {
+  label: string;
+  value: number;
 }
 
 interface RespondentData {
@@ -240,7 +245,9 @@ export default function PublicFormSubmit() {
       if (!validateRespondentData()) return;
     } else {
       const currentQuestion = schema[currentStep - 1];
-      if (currentQuestion?.type !== 'info' && currentQuestion?.required && !answers[currentQuestion.id]) {
+      // Skip validation for non-question types
+      const skipTypes = ['info', 'header', 'subheader'];
+      if (currentQuestion && !skipTypes.includes(currentQuestion.type) && currentQuestion.required && !answers[currentQuestion.id]) {
         toast.error("Esta pergunta é obrigatória");
         return;
       }
@@ -977,6 +984,8 @@ function QuestionInput({
       );
 
     case "info":
+    case "header":
+    case "subheader":
       return (
         <motion.div 
           initial={{ opacity: 0 }}
@@ -984,9 +993,58 @@ function QuestionInput({
           className="p-6 rounded-2xl bg-slate-800/30 border border-slate-700/50"
         >
           <p className="text-slate-300 text-lg leading-relaxed">
-            {question.description || "Continue para a próxima seção."}
+            {question.description || question.label || "Continue para a próxima seção."}
           </p>
         </motion.div>
+      );
+
+    case "likert":
+      // HSE-IT style Likert scale (1-5)
+      const likertOptions = (question.options || []) as LikertOption[];
+      return (
+        <div className="space-y-3">
+          {likertOptions.map((option, index) => {
+            const isSelected = value === option.value || value === String(option.value);
+            return (
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.05 }}
+              >
+                <button
+                  type="button"
+                  onClick={() => onChange(option.value)}
+                  className={cn(
+                    "w-full flex items-center gap-4 p-4 rounded-2xl border-2 cursor-pointer transition-all text-left",
+                    isSelected
+                      ? "border-emerald-500 bg-emerald-500/10 shadow-lg shadow-emerald-500/10"
+                      : "border-slate-700 hover:border-emerald-500/50 bg-slate-800/30"
+                  )}
+                >
+                  <div className={cn(
+                    "w-10 h-10 rounded-xl flex items-center justify-center text-lg font-bold shrink-0",
+                    isSelected ? "bg-emerald-500 text-white" : "bg-slate-700 text-slate-400"
+                  )}>
+                    {option.value}
+                  </div>
+                  <span className={cn("flex-1 text-lg", isSelected ? "text-white font-medium" : "text-slate-300")}>
+                    {option.label}
+                  </span>
+                  {isSelected && (
+                    <motion.div
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      className="w-6 h-6 rounded-full flex items-center justify-center bg-emerald-500"
+                    >
+                      <CheckCircle2 className="h-4 w-4 text-white" />
+                    </motion.div>
+                  )}
+                </button>
+              </motion.div>
+            );
+          })}
+        </div>
       );
 
     case "weighted_radio":

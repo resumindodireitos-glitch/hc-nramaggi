@@ -20,15 +20,26 @@ import type { Database, Json } from "@/integrations/supabase/types";
 
 type Form = Database["public"]["Tables"]["forms"]["Row"];
 
+interface WeightedOption {
+  text: string;
+  weight: number;
+}
+
+interface LikertOption {
+  label: string;
+  value: number;
+}
+
 interface FormQuestion {
   id: string;
   label: string;
   description?: string;
-  type: "text" | "textarea" | "radio" | "checkbox" | "scale" | "slider";
-  options?: string[];
+  type: "text" | "textarea" | "radio" | "checkbox" | "scale" | "slider" | "select" | "info" | "weighted_radio" | "likert" | "header" | "subheader";
+  options?: string[] | WeightedOption[] | LikertOption[];
   required?: boolean;
   min?: number;
   max?: number;
+  dimension_group?: string;
 }
 
 export default function FormSubmit() {
@@ -95,11 +106,22 @@ export default function FormSubmit() {
   const progress = ((currentStep + 1) / totalSteps) * 100;
 
   const validateRespondentData = () => {
-    const validation = validateWithZod(respondentDataSchema, respondentData);
-    
-    if (!validation.success && validation.errors) {
-      const firstError = Object.values(validation.errors)[0]?.[0];
-      toast.error(firstError || "Dados inválidos");
+    // Manual validation that matches what we actually collect
+    const cleanedCpf = respondentData.cpf?.replace(/\D/g, '') || '';
+    if (cleanedCpf.length < 11) {
+      toast.error("CPF é obrigatório (11 dígitos)");
+      return false;
+    }
+    if (!respondentData.setor?.trim()) {
+      toast.error("Setor é obrigatório");
+      return false;
+    }
+    if (!respondentData.cargo?.trim()) {
+      toast.error("Cargo é obrigatório");
+      return false;
+    }
+    if (!respondentData.tempo_empresa) {
+      toast.error("Tempo na empresa é obrigatório");
       return false;
     }
     return true;
@@ -110,7 +132,9 @@ export default function FormSubmit() {
       if (!validateRespondentData()) return;
     } else {
       const currentQuestion = schema[currentStep - 1];
-      if (currentQuestion?.required && !answers[currentQuestion.id]) {
+      // Skip validation for non-question types
+      const skipTypes = ['info', 'header', 'subheader'];
+      if (currentQuestion && !skipTypes.includes(currentQuestion.type) && currentQuestion.required && !answers[currentQuestion.id]) {
         toast.error("Esta pergunta é obrigatória");
         return;
       }
@@ -310,6 +334,63 @@ export default function FormSubmit() {
                 <span>Alto ({question.max || 100})</span>
               </div>
             </div>
+          )}
+
+          {question.type === "likert" && question.options && (
+            <RadioGroup
+              value={String(answers[question.id] || "")}
+              onValueChange={(value) => updateAnswer(question.id, parseInt(value))}
+              className="space-y-3"
+            >
+              {(question.options as LikertOption[]).map((option, idx) => (
+                <div 
+                  key={idx} 
+                  className={`flex items-center space-x-3 p-3 rounded-lg border hover:bg-muted/50 transition-colors cursor-pointer ${
+                    answers[question.id] === option.value ? 'border-primary bg-primary/5' : ''
+                  }`}
+                  onClick={() => updateAnswer(question.id, option.value)}
+                >
+                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center font-bold ${
+                    answers[question.id] === option.value ? 'bg-primary text-primary-foreground' : 'bg-muted'
+                  }`}>
+                    {option.value}
+                  </div>
+                  <RadioGroupItem value={String(option.value)} id={`${question.id}-${option.value}`} className="sr-only" />
+                  <Label htmlFor={`${question.id}-${option.value}`} className="font-normal cursor-pointer flex-1">
+                    {option.label}
+                  </Label>
+                </div>
+              ))}
+            </RadioGroup>
+          )}
+
+          {question.type === "weighted_radio" && question.options && (
+            <RadioGroup
+              value={(answers[question.id] as string) || ""}
+              onValueChange={(value) => updateAnswer(question.id, value)}
+              className="space-y-3"
+            >
+              {(question.options as WeightedOption[]).map((option, idx) => (
+                <div 
+                  key={idx} 
+                  className={`flex items-center space-x-3 p-3 rounded-lg border hover:bg-muted/50 transition-colors cursor-pointer ${
+                    answers[question.id] === option.text ? 'border-primary bg-primary/5' : ''
+                  }`}
+                  onClick={() => updateAnswer(question.id, option.text)}
+                >
+                  <RadioGroupItem value={option.text} id={`${question.id}-${idx}`} className="sr-only" />
+                  <Label htmlFor={`${question.id}-${idx}`} className="font-normal cursor-pointer flex-1">
+                    {option.text}
+                  </Label>
+                </div>
+              ))}
+            </RadioGroup>
+          )}
+
+          {(question.type === "info" || question.type === "header" || question.type === "subheader") && (
+            <p className="text-muted-foreground">
+              {question.description || "Continue para a próxima pergunta."}
+            </p>
           )}
         </CardContent>
       </Card>
